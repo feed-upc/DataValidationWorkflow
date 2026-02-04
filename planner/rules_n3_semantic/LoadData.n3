@@ -1,0 +1,45 @@
+# N3 Logic Rule: Initialize LoadData Operation (SEMANTIC VERSION)
+# Layer 1 - Data Access Initialization
+# 
+# This rule creates the first operation in a PolicyChecker chain: LoadData.
+# It extracts data access information from the data product's technical aspects.
+# USES SEMANTIC PROPERTIES instead of flat hasInput for unambiguous parameter binding.
+
+@prefix odrl: <http://www.w3.org/ns/odrl/2/> .
+@prefix tb: <http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/tbox#> .
+@prefix ab: <http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/abox#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix log: <http://www.w3.org/2000/10/swap/log#> .
+
+# Rule 1: Create PolicyChecker with LoadData operation
+# Triggers when: Data product has policy and static file access
+# SEMANTIC: Uses tb:hasFilePath instead of tb:hasInput
+{
+    # Find policy attached to data product via data contract
+    ?dp tb:hasDC ?dc .
+    ?dc tb:hasPolicy ?policy .
+    
+    # Data product has technical aspects with static access
+    ?dp tb:hasTA ?ta .
+    ?ta tb:hasAcces ?access .
+    ?access rdfs:label ab:Static ;
+            tb:path ?path .
+}
+=>
+{
+    # Create PolicyChecker (blank node = auto-generated unique URI)
+    _:pc a tb:PolicyChecker ;
+         tb:validates ?dp ;
+         tb:accordingTo ?policy ;
+         tb:nextStep _:loadOp .
+    
+    # Create LoadData operation with ROLE-ANNOTATED INPUT
+    _:loadOp a tb:Operation ;
+             tb:hasAbstract ab:LoadData ;
+             tb:hasInput [
+                 tb:value ?path ;
+                 tb:role "filePath"
+             ] ;
+             tb:hasOutput ab:data .
+} .

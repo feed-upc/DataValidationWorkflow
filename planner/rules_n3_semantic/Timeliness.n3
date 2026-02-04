@@ -1,0 +1,103 @@
+# N3 Logic Rule: Timeliness/Freshness Policy Transformation (SEMANTIC VERSION)
+# Rule Chaining - Automatically chains from LoadData operation
+#
+# Transforms ODRL Permission policies with freshness constraints into data age validation operations.
+# USES SEMANTIC PROPERTIES instead of flat hasInput for unambiguous parameter binding.
+
+@prefix odrl: <http://www.w3.org/ns/odrl/2/> .
+@prefix tb: <http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/tbox#> .
+@prefix ab: <http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/abox#> .
+@prefix dqv: <http://www.w3.org/ns/dqv#> .
+@prefix qudt: <http://qudt.org/vocab/unit/> .
+@prefix csvw: <http://www.w3.org/ns/csvw#> .
+@prefix schema: <http://schema.org/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix log: <http://www.w3.org/2000/10/swap/log#> .
+
+# Rule: Quality Policy with Permission and Freshness Constraint → CheckFreshness + Validation Operations
+# Chains from LoadData when Quality policy with permission and timeliness constraint exists
+# Creates TWO operations with SEMANTIC properties
+{
+    # Match PolicyChecker with Quality policy
+    ?pc a tb:PolicyChecker ;
+        tb:accordingTo ?policy ;
+        tb:nextStep ?loadOp .
+    
+    # LoadData operation
+    ?loadOp a tb:Operation ;
+            tb:hasAbstract ab:LoadData .
+    
+    # Check Freshness Policy
+    ?policy a dqv:QualityPolicy ;
+            odrl:permission ?permission .
+    
+    ?permission odrl:constraint ?constraint .
+
+    # Constraint details (DataAge < threshold)
+    ?constraint odrl:leftOperand ?metric ;
+                odrl:operator odrl:lteq ;
+                odrl:rightOperand ?threshold ;
+                odrl:unit qudt:MinuteTime .
+
+    ?metric a dqv:Metric ;
+            dqv:inDimension ab:Timeliness .
+
+    # Find the target (e.g. ab:Survival) and its resolved physical attribute
+    ?permission tb:physicalAttribute ?targetAttr .
+
+    # Find the DATASET that this target attribute belongs to
+    ?dataset tb:hasAttribute ?targetAttr .
+    
+    # Find the TIMESTAMP attribute in that SAME dataset
+    # Look for attribute with schema:dateCreated property
+    ?dataset tb:hasAttribute ?timestampAttr .
+    ?timestampAttr csvw:propertyUrl schema:dateCreated ;
+                   tb:attribute ?tsColName .
+                   
+    # Ensure checking loop
+    ?permission tb:physicalAttribute ?targetAttr .
+    
+}
+=>
+{
+    # Operation 1: CheckFreshness - compute age from timestamp
+    # ROLE-ANNOTATED INPUTS: Each input has explicit role
+    _:freshnessOp a tb:Operation ;
+                  tb:hasAbstract ab:CheckFreshness ;
+                  tb:hasInput [
+                      tb:value ?timestampAttr ;
+                      tb:role "timestampAttribute"
+                  ] ;
+                  tb:hasInput [
+                      tb:value ab:data ;
+                      tb:role "previousResult"
+                  ] ;
+                  tb:hasOutput ab:data ;
+                  tb:nextStep _:validationOp .
+    
+    # Chain Operation 1 from LoadData
+    ?loadOp tb:nextStep _:freshnessOp .
+    
+    # Operation 2: Constraint validation - check age against threshold (TERMINAL)
+    # ROLE-ANNOTATED INPUTS: Multiple inputs with different roles
+    _:validationOp a tb:Operation ;
+                   tb:hasAbstract odrl:Constraint ;
+                   tb:hasInput [
+                       tb:value ab:data ;
+                       tb:role "previousResult"
+                   ] ;
+                   tb:hasInput [
+                       tb:value ?threshold ;
+                       tb:role "threshold"
+                   ] ;
+                   tb:hasInput [
+                       tb:value ?operator ;
+                       tb:role "operator"
+                   ] ;
+                   tb:hasOutput ab:data ;
+                   tb:isTerminal true .
+    
+    # Chain Operation 2 from Operation 1
+    _:freshnessOp tb:nextStep _:validationOp .
+} .

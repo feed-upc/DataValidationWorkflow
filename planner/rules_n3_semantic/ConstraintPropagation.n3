@@ -1,0 +1,149 @@
+# N3 Logic Rule: Constraint Propagation
+# Resolves semantic Features to physical Attributes using tb:mfrom/tb:mto mappings
+#
+# This rule ensures operations use physical column names (Attributes) 
+# instead of semantic concepts (Features) by following the SDM mappings.
+#
+# Strategy: For each duty/constraint/prohibition/permission with a semantic Feature target,
+# create a companion triple with the mapped physical Attribute.
+# Other rules can then use this resolved target.
+
+@prefix odrl: <http://www.w3.org/ns/odrl/2/> .
+@prefix tb: <http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/tbox#> .
+@prefix ab: <http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/abox#> .
+@prefix dqv: <http://www.w3.org/ns/dqv#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix log: <http://www.w3.org/2000/10/swap/log#> .
+
+# Rule 1: Propagate Feature → Attribute for Duty Target in Privacy Policies
+# When a duty in a Privacy policy targets a semantic Feature, resolve to physical Attribute
+{
+    # Privacy policy with duty targeting a feature
+    ?policy a odrl:Privacy ;
+            odrl:duty ?duty .
+    
+    ?duty odrl:target ?semanticFeature .
+    
+    # Find mapping from physical attribute to semantic feature
+    # tb:mfrom = physical attribute (e.g., Age_at_scan_years)
+    # tb:mto = semantic feature (e.g., Age)
+    ?mapping tb:mfrom ?physicalAttr ;
+             tb:mto ?semanticFeature .
+}
+=>
+{
+    # Create resolved target assertion that Privacy rules can use
+    ?duty tb:physicalAttribute ?physicalAttr .
+} .
+
+# Rule 2: Propagate Feature → Attribute for Duty Target in Quality Policies
+# When a duty in a Quality policy targets a semantic Feature, resolve to physical Attribute
+{
+    # Quality policy with duty targeting a feature
+    ?policy a dqv:QualityPolicy ;
+            odrl:duty ?duty .
+    
+    ?duty odrl:target ?semanticFeature .
+    
+    # Find mapping from physical attribute to semantic feature
+    ?mapping tb:mfrom ?physicalAttr ;
+             tb:mto ?semanticFeature .
+}
+=>
+{
+    # Create resolved target assertion that Quality rules can use
+    ?duty tb:physicalAttribute ?physicalAttr .
+} .
+
+# Rule 3: Propagate Feature → Attribute for Prohibition Target in Data Correctness Policies
+# When a prohibition in a DCPolicy targets a semantic Feature, resolve to physical Attribute
+{
+    # Data Correctness policy with prohibition targeting a feature
+    ?policy a tb:DCPolicy ;
+            odrl:prohibition ?prohibition .
+    
+    ?prohibition odrl:target ?semanticFeature .
+    
+    # Find mapping from physical attribute to semantic feature
+    ?mapping tb:mfrom ?physicalAttr ;
+             tb:mto ?semanticFeature .
+}
+=>
+{
+    # Create resolved target assertion that DataCorrectness rules can use
+    ?prohibition tb:physicalAttribute ?physicalAttr .
+} .
+
+# Rule 4: Propagate Feature → Attribute for QualityMeasurement computedOn in Permissions
+# When a permission's constraint references a QualityMeasurement computed on a semantic Feature,
+# resolve that Feature to its physical Attribute (needed for timeliness/freshness policies)
+{
+    # Quality policy with permission containing constraint
+    ?policy a dqv:QualityPolicy ;
+            odrl:permission ?permission .
+    
+    ?permission odrl:constraint ?constraint .
+    
+    # Constraint references a Quality Measurement
+    ?constraint odrl:leftOperand ?measurement .
+    
+    # Measurement is computed on a semantic feature
+    ?measurement a dqv:QualityMeasurement ;
+                 dqv:computedOn ?semanticFeature .
+    
+    # Find mapping from physical attribute to semantic feature
+    ?mapping tb:mfrom ?physicalAttr ;
+             tb:mto ?semanticFeature .
+}
+=>
+{
+    # Create resolved attribute assertion that Timeliness rules can use
+    ?permission tb:physicalAttribute ?physicalAttr .
+} .
+
+# Rule 5: Propagate Schema.org property → Attribute for QualityMeasurement (ALTERNATIVE PATH)
+# When a QualityMeasurement references a Schema.org property (like schema:dateCreated),
+# find the physical attribute that has that propertyUrl
+{
+    # Quality policy with permission containing constraint
+    ?policy a dqv:QualityPolicy ;
+            odrl:permission ?permission .
+    
+    ?permission odrl:constraint ?constraint .
+    
+    # Constraint references a Quality Measurement
+    ?constraint odrl:leftOperand ?measurement .
+    
+    # Measurement is computed on a Schema.org property
+    ?measurement a dqv:QualityMeasurement ;
+                 dqv:computedOn ?schemaProperty .
+    
+    # Find attribute that has this Schema.org property as propertyUrl
+    ?physicalAttr tb:attribute ?attrName ;
+                  <http://www.w3.org/ns/csvw#propertyUrl> ?schemaProperty .
+}
+=>
+{
+    # Create resolved attribute assertion that Timeliness rules can use
+    ?permission tb:physicalAttribute ?physicalAttr .
+} .
+
+# Rule 6: Propagate Feature → Attribute for Permission Target
+# When a permission targets a semantic Feature directly (new Timeliness policy)
+{
+    # Quality policy with permission targeting a feature
+    ?policy a dqv:QualityPolicy ;
+            odrl:permission ?permission .
+    
+    ?permission odrl:target ?semanticFeature .
+    
+    # Find mapping from physical attribute to semantic feature
+    ?mapping tb:mfrom ?physicalAttr ;
+             tb:mto ?semanticFeature .
+}
+ =>
+{
+    # Create resolved target assertion that Quality rules can use
+    ?permission tb:physicalAttribute ?physicalAttr .
+} .

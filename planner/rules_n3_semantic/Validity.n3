@@ -1,0 +1,69 @@
+# N3 Logic Rule: Validity Policy Transformation (DQRP3)
+# Transforms DQV Validity policies with isPartOf constraints into vocabulary validation operations.
+# 
+# Pattern: Policy with duty targeting a semantic feature, constraint using odrl:isPartOf
+# The ConstraintPropagation rule resolves the semantic target to physical attribute.
+
+@prefix odrl: <http://www.w3.org/ns/odrl/2/> .
+@prefix tb: <http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/tbox#> .
+@prefix ab: <http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/abox#> .
+@prefix dqv: <http://www.w3.org/ns/dqv#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix log: <http://www.w3.org/2000/10/swap/log#> .
+
+# Rule: Validity Policy with isPartOf constraint → Vocabulary Validation Operation
+# Chains from LoadData when Validity policy with controlled vocabulary exists
+# The physical attribute is resolved by ConstraintPropagation.n3
+{
+    # Match PolicyChecker with Validity policy
+    ?pc a tb:PolicyChecker ;
+        tb:accordingTo ?policy ;
+        tb:nextStep ?loadOp .
+    
+    # LoadData operation
+    ?loadOp a tb:Operation ;
+            tb:hasAbstract ab:LoadData .
+    
+    # Validity policy structure
+    ?policy a dqv:QualityPolicy ;
+            odrl:duty ?duty .
+    
+    ?duty odrl:target ?semanticTarget ;
+          odrl:constraint ?constraint .
+    
+    # Get physical attribute resolved by ConstraintPropagation rule
+    ?duty tb:physicalAttribute ?physicalAttr .
+    
+    # Constraint with isPartOf operator (vocabulary check)
+    ?constraint odrl:leftOperand ?metric ;
+                odrl:rightOperand ?vocabulary ;
+                odrl:operator odrl:isPartOf .
+    
+    # Verify vocabulary exists with allowed values
+    ?vocabulary a tb:ControlledVocabulary .
+}
+=>
+{
+    # Create validity check operation chained from LoadData (TERMINAL)
+    # ROLE-ANNOTATED INPUTS: Each input has explicit role
+    _:validityOp a tb:Operation ;
+                tb:hasAbstract ab:CheckValidity ;
+                tb:hasInput [
+                    tb:value ?physicalAttr ;
+                    tb:role "targetAttribute"
+                ] ;
+                tb:hasInput [
+                    tb:value ab:data ;
+                    tb:role "previousResult"
+                ] ;
+                tb:hasInput [
+                    tb:value ?vocabulary ;
+                    tb:role "vocabularyRef"
+                ] ;
+                tb:hasOutput ab:boolean ;
+                tb:isTerminal true .
+    
+    # Chain from LoadData
+    ?loadOp tb:nextStep _:validityOp .
+} .

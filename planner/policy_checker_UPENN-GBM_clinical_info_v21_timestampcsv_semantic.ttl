@@ -1,0 +1,29 @@
+@prefix abox: <http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/abox#> .
+@prefix tbox: <http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/tbox#> .
+
+abox:genid-437f59bd8ce5 a tbox:PolicyChecker ;
+    tbox:accordingTo abox:DQRP2 ;
+    tbox:nextStep abox:genid-06004dec4701 ;
+    tbox:validates abox:UPENN-GBM_clinical_info_v21_timestampcsv .
+
+abox:genid-70bdfda2788a a tbox:PolicyChecker ;
+    tbox:accordingTo abox:DQRP1 ;
+    tbox:nextStep abox:genid-73d6739a1a1b ;
+    tbox:validates abox:UPENN-GBM_clinical_info_v21_timestampcsv .
+
+abox:genid-06004dec4701 a tbox:Operation ;
+    tbox:hasAbstract abox:LoadData ;
+    tbox:hasInput abox:genid-31e78d7a54d6 ;
+    tbox:hasOutput abox:data .
+
+abox:genid-31e78d7a54d6 tbox:role "filePath" ;
+    tbox:value "/home/acraf/psr/Fdatavalidation-1/DataProductLayer/DataProduct/Data/Explotation/UPENN-GBM_clinical_info_v2.1_timestamp.csv" .
+
+abox:genid-73d6739a1a1b a tbox:Operation ;
+    tbox:hasAbstract abox:LoadData ;
+    tbox:hasInput abox:genid-d9932dbb5496 ;
+    tbox:hasOutput abox:data .
+
+abox:genid-d9932dbb5496 tbox:role "filePath" ;
+    tbox:value "/home/acraf/psr/Fdatavalidation-1/DataProductLayer/DataProduct/Data/Explotation/UPENN-GBM_clinical_info_v2.1_timestamp.csv" .
+

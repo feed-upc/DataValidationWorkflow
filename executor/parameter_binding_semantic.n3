@@ -1,0 +1,206 @@
+# N3 Parameter Binding Rules (ROLE-ANNOTATED hasInput VERSION)
+# ==============================================================================
+# These rules bind hasInput nodes with tb:role to implementation parameters.
+# Best of both worlds: keep hasInput for analysis + roles for unambiguous binding!
+# ==============================================================================
+
+@prefix tb: <http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/tbox#> .
+@prefix ab: <http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/abox#> .
+@prefix odrl: <http://www.w3.org/ns/odrl/2/> .
+@prefix dqv: <http://www.w3.org/ns/dqv#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix log: <http://www.w3.org/2000/10/swap/log#> .
+@prefix string: <http://www.w3.org/2000/10/swap/string#> .
+
+# ==============================================================================
+# RULE 1: Bind inputs with role "filePath" to parameter "p"
+# ==============================================================================
+
+{
+  ?op tb:hasAbstract ab:LoadData .
+  ?op tb:hasInput ?inputNode .
+  ?inputNode tb:role "filePath" .
+  ?inputNode tb:value ?path .
+}
+=>
+{
+  ?op tb:boundParameter [
+    tb:name "p" ;
+    tb:value ?path ;
+    tb:source "hasInput" ;
+    tb:role "filePath"
+  ] .
+  
+  ?op tb:hasImplementation ab:Imp1 .
+} .
+
+
+# ==============================================================================
+# RULE 2: Bind inputs with role "previousResult" to parameter "data"
+# ==============================================================================
+
+{
+  ?op tb:hasInput ?inputNode .
+  ?inputNode tb:role "previousResult" .
+  ?inputNode tb:value ?data .
+}
+=>
+{
+  ?op tb:boundParameter [
+    tb:name "data" ;
+    tb:value ?data ;
+    tb:source "hasInput" ;
+    tb:role "previousResult"
+  ] .
+} .
+
+
+# ==============================================================================
+# RULE 3: Bind inputs with role "timestampAttribute" to parameter "ts_attr"
+# ==============================================================================
+
+{
+  ?op tb:hasAbstract ab:CheckFreshness .
+  ?op tb:hasInput ?inputNode .
+  ?inputNode tb:role "timestampAttribute" .
+  ?inputNode tb:value ?attrURI .
+  
+  # Extract local name from URI (e.g., abox:ts -> "ts")
+  ?attrURI log:uri ?uriString .
+  (?uriString "#(.+)") string:scrape ?localName .
+}
+=>
+{
+  ?op tb:boundParameter [
+    tb:name "ts_attr" ;
+    tb:value ?localName ;
+    tb:source "hasInput" ;
+    tb:role "attributeReference"
+  ] .
+  
+  ?op tb:hasImplementation ab:ImpCheckFreshness .
+} .
+
+
+# ==============================================================================
+# RULE 4: Bind inputs with role "targetAttribute" to parameter "attr"
+# ==============================================================================
+
+{
+  ?op tb:hasInput ?inputNode .
+  ?inputNode tb:role "targetAttribute" .
+  ?inputNode tb:value ?attrURI .
+  
+  # Extract local name from URI
+  ?attrURI log:uri ?uriString .
+  (?uriString "#(.+)") string:scrape ?localName .
+}
+=>
+{
+  ?op tb:boundParameter [
+    tb:name "attr" ;
+    tb:value ?localName ;
+    tb:source "hasInput" ;
+    tb:role "attributeReference"
+  ] .
+} .
+
+
+# ==============================================================================
+# RULE 5: Bind inputs with role "threshold" to parameter "threshold"
+# ==============================================================================
+
+{
+  ?op tb:hasInput ?inputNode .
+  ?inputNode tb:role "threshold" .
+  ?inputNode tb:value ?threshold .
+}
+=>
+{
+  ?op tb:boundParameter [
+    tb:name "threshold" ;
+    tb:value ?threshold ;
+    tb:source "hasInput" ;
+    tb:role "threshold"
+  ] .
+} .
+
+
+# ==============================================================================
+# RULE 6: Bind inputs with role "operator" to parameter "operator"
+# ==============================================================================
+
+{
+  ?op tb:hasInput ?inputNode .
+  ?inputNode tb:role "operator" .
+  ?inputNode tb:value ?operator .
+}
+=>
+{
+  ?op tb:boundParameter [
+    tb:name "operator" ;
+    tb:value ?operator ;
+    tb:source "hasInput" ;
+    tb:role "operator"
+  ] .
+} .
+
+
+# ==============================================================================
+# RULE 7: Select Constraint implementation based on operator
+# ==============================================================================
+# Maps operator role to specific implementation
+
+{
+  ?op tb:hasAbstract odrl:Constraint .
+  ?op tb:hasInput ?inputNode .
+  ?inputNode tb:role "operator" .
+  ?inputNode tb:value "odrl:lteq" .
+}
+=>
+{
+  ?op tb:hasImplementation ab:ImpConstraintLteq .
+} .
+
+{
+  ?op tb:hasAbstract odrl:Constraint .
+  ?op tb:hasInput ?inputNode .
+  ?inputNode tb:role "operator" .
+  ?inputNode tb:value "odrl:gteq" .
+}
+=>
+{
+  ?op tb:hasImplementation ab:ImpConstraintGteq .
+} .
+
+{
+  ?op tb:hasAbstract odrl:Constraint .
+  ?op tb:hasInput ?inputNode .
+  ?inputNode tb:role "operator" .
+  ?inputNode tb:value "odrl:eq" .
+}
+=>
+{
+  ?op tb:hasImplementation ab:ImpConstraintEq .
+} .
+
+
+# ==============================================================================
+# RULE 8: Bind quality metric implementation
+# ==============================================================================
+
+{
+  ?op tb:hasAbstract dqv:completeness .
+}
+=>
+{
+  ?op tb:hasImplementation ab:ImpQualityMetric .
+} .
+
+{
+  ?op tb:hasAbstract ab:NonNullValues .
+}
+=>
+{
+  ?op tb:hasImplementation ab:ImpQualityMetric .
+} .

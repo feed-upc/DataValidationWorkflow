@@ -1,0 +1,66 @@
+# N3 Logic Rule: Consistency Policy Transformation (DQRP4)
+# Transforms DQV Consistency policies with cross-attribute validation into consistency check operations.
+# 
+# Pattern: Policy with duty targeting a semantic feature, constraint with CheckConsistency metric
+# The ConstraintPropagation rule resolves the semantic target to physical attribute.
+
+@prefix odrl: <http://www.w3.org/ns/odrl/2/> .
+@prefix tb: <http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/tbox#> .
+@prefix ab: <http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/abox#> .
+@prefix dqv: <http://www.w3.org/ns/dqv#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix log: <http://www.w3.org/2000/10/swap/log#> .
+
+# Rule: Consistency Policy with CheckConsistency metric → Cross-attribute Validation Operation
+# Chains from LoadData when Consistency policy exists
+# The physical attribute is resolved by ConstraintPropagation.n3
+{
+    # Match PolicyChecker with Consistency policy
+    ?pc a tb:PolicyChecker ;
+        tb:accordingTo ?policy ;
+        tb:nextStep ?loadOp .
+    
+    # LoadData operation
+    ?loadOp a tb:Operation ;
+            tb:hasAbstract ab:LoadData .
+    
+    # Consistency policy structure
+    ?policy a dqv:QualityPolicy ;
+            odrl:duty ?duty .
+    
+    ?duty odrl:target ?semanticTarget ;
+          odrl:constraint ?constraint .
+    
+    # Get physical attribute resolved by ConstraintPropagation rule
+    ?duty tb:physicalAttribute ?physicalAttr .
+    
+    # Constraint with eq operator and CheckConsistency metric
+    ?constraint odrl:leftOperand ab:CheckConsistency ;
+                odrl:rightOperand ?expectedValue ;
+                odrl:operator odrl:eq .
+}
+=>
+{
+    # Create consistency check operation chained from LoadData (TERMINAL)
+    # ROLE-ANNOTATED INPUTS: Each input has explicit role
+    _:consistencyOp a tb:Operation ;
+                tb:hasAbstract ab:CheckConsistency ;
+                tb:hasInput [
+                    tb:value ?physicalAttr ;
+                    tb:role "targetAttribute"
+                ] ;
+                tb:hasInput [
+                    tb:value ab:data ;
+                    tb:role "previousResult"
+                ] ;
+                tb:hasInput [
+                    tb:value ?expectedValue ;
+                    tb:role "threshold"
+                ] ;
+                tb:hasOutput ab:boolean ;
+                tb:isTerminal true .
+    
+    # Chain from LoadData
+    ?loadOp tb:nextStep _:consistencyOp .
+} .
