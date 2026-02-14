@@ -1,7 +1,7 @@
 # N3 Parameter Binding Rules (ROLE-ANNOTATED hasInput VERSION)
 # ==============================================================================
 # These rules bind hasInput nodes with tb:role to implementation parameters.
-# Best of both worlds: keep hasInput for analysis + roles for unambiguous binding!
+# CLEARED VERSION: ONLY FOR DQRP1 (Timeliness) and DQRP2 (Completeness)
 # ==============================================================================
 
 @prefix tb: <http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/tbox#> .
@@ -155,7 +155,7 @@
   ?op tb:hasAbstract odrl:Constraint .
   ?op tb:hasInput ?inputNode .
   ?inputNode tb:role "operator" .
-  ?inputNode tb:value "odrl:lteq" .
+  ?inputNode tb:value odrl:lteq .
 }
 =>
 {
@@ -166,7 +166,7 @@
   ?op tb:hasAbstract odrl:Constraint .
   ?op tb:hasInput ?inputNode .
   ?inputNode tb:role "operator" .
-  ?inputNode tb:value "odrl:gteq" .
+  ?inputNode tb:value odrl:gteq .
 }
 =>
 {
@@ -177,7 +177,7 @@
   ?op tb:hasAbstract odrl:Constraint .
   ?op tb:hasInput ?inputNode .
   ?inputNode tb:role "operator" .
-  ?inputNode tb:value "odrl:eq" .
+  ?inputNode tb:value odrl:eq .
 }
 =>
 {
@@ -190,17 +190,10 @@
 # ==============================================================================
 
 {
-  ?op tb:hasAbstract dqv:completeness .
+  ?op tb:hasAbstract ab:qM .
 }
 =>
 {
   ?op tb:hasImplementation ab:ImpQualityMetric .
 } .
 
-{
-  ?op tb:hasAbstract ab:NonNullValues .
-}
-=>
-{
-  ?op tb:hasImplementation ab:ImpQualityMetric .
-} .

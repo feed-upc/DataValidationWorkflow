@@ -22,6 +22,7 @@
     # Match PolicyChecker with Quality policy
     ?pc a tb:PolicyChecker ;
         tb:accordingTo ?policy ;
+        tb:validates ?dataset ;
         tb:nextStep ?loadOp .
     
     # LoadData operation
@@ -38,26 +39,16 @@
     ?constraint odrl:leftOperand ?metric ;
                 odrl:operator odrl:lteq ;
                 odrl:rightOperand ?threshold ;
-                odrl:unit qudt:MinuteTime .
+                odrl:unit <http://qudt.org/schema/qudt/MIN> .
 
-    ?metric a dqv:Metric ;
-            dqv:inDimension ab:Timeliness .
+    ?policy tb:qualityDimension "Timeliness" .
 
-    # Find the target (e.g. ab:Survival) and its resolved physical attribute
-    ?permission tb:physicalAttribute ?targetAttr .
-
-    # Find the DATASET that this target attribute belongs to
-    ?dataset tb:hasAttribute ?targetAttr .
-    
-    # Find the TIMESTAMP attribute in that SAME dataset
-    # Look for attribute with schema:dateCreated property
-    ?dataset tb:hasAttribute ?timestampAttr .
-    ?timestampAttr csvw:propertyUrl schema:dateCreated ;
-                   tb:attribute ?tsColName .
-                   
-    # Ensure checking loop
+    # Resolve physical attribute via ConstraintPropagation rule (from odrl:target)
     ?permission tb:physicalAttribute ?targetAttr .
     
+    # We also need the timestamp attribute details for the CheckFreshness operation
+    # Since we know ?targetAttr IS the timestamp attribute (e.g. lastUpdated), we use it.
+    ?targetAttr tb:attribute ?tsColName .
 }
 =>
 {
@@ -66,7 +57,7 @@
     _:freshnessOp a tb:Operation ;
                   tb:hasAbstract ab:CheckFreshness ;
                   tb:hasInput [
-                      tb:value ?timestampAttr ;
+                      tb:value ?targetAttr ;
                       tb:role "timestampAttribute"
                   ] ;
                   tb:hasInput [

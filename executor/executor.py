@@ -20,6 +20,10 @@ from pathlib import Path
 import json
 import time
 import hashlib
+import subprocess
+import tempfile
+import os
+import shutil
 from typing import Any, Dict, Optional, Tuple
 from rdflib import Graph, Namespace, URIRef, Literal, RDF, BNode, XSD
 
@@ -108,6 +112,130 @@ class SemanticN3Executor:
         self.graph.bind('prov', prov)
         self.graph.bind('xsd', XSD)
     
+    def apply_n3_bindings(self, pc_uri: URIRef):
+        """
+        Apply N3 rules to bind parameters.
+        Generates tb:boundParameter triples.
+        """
+        print(f"Applying N3 parameter binding rules for {pc_uri}")
+        
+        # Create subgraph for reasoning
+        pc_subgraph = Graph()
+        # Bind prefixes
+        pc_subgraph.bind('tb', tb)
+        pc_subgraph.bind('ab', abox)
+        pc_subgraph.bind('odrl', Namespace("http://www.w3.org/ns/odrl/2/"))
+        pc_subgraph.bind('dqv', Namespace("http://www.w3.org/ns/dqv#"))
+        
+        # Add relevant triples
+        self._add_operation_chain(self.graph, pc_subgraph, pc_uri)
+        
+        # Create local temp dir to avoid absolute path issues with EYE (Node wrapper)
+        temp_dir = Path.cwd() / f"eye_temp_{int(time.time()*1000)}"
+        temp_dir.mkdir(exist_ok=True)
+        
+        try:
+            # Save data
+            data_file = temp_dir / "data.n3"
+            pc_subgraph.serialize(destination=str(data_file), format='n3')
+            
+            # Copy rules
+            original_rules = Path(__file__).parent / "parameter_binding_semantic.n3"
+            if not original_rules.exists():
+                raise FileNotFoundError(f"Rules not found: {original_rules}")
+                
+            rules_file = temp_dir / "rules.n3"
+            shutil.copy(original_rules, rules_file)
+            
+            # Resolve eye path
+            eye_path = self._resolve_eye_path()
+            
+            # Run EYE with relative paths from temp_dir
+            cmd = [eye_path, 'data.n3', 'rules.n3', '--pass', '--nope']
+            
+            # print(f"Running EYE in {temp_dir}: {' '.join(cmd)}")
+            
+            result = subprocess.run(
+                cmd, 
+                cwd=str(temp_dir),
+                capture_output=True, 
+                text=True
+            )
+            
+            if result.returncode != 0:
+                print(f"Error running EYE: {result.stderr}")
+                raise RuntimeError(f"EYE failed: {result.stderr}")
+                
+            # Parse results
+            result_graph = Graph()
+            # Bind prefixes again for parsing safety
+            result_graph.bind('tb', tb)
+            try:
+                result_graph.parse(data=result.stdout, format='n3')
+                # print(f"✓ Generated {len(result_graph)} triples from reasoning")
+            except Exception as e:
+                print(f"Error parsing EYE output: {e}")
+                # print(f"Raw output start: {result.stdout[:200]}")
+                raise
+
+            # Merge bound parameters back to main graph
+            count = 0
+            for s, p, o in result_graph:
+                self.graph.add((s, p, o))
+                count += 1
+                
+            print(f"✓ Merged {count} inferred triples (bindings)")
+            
+        finally:
+            # Cleanup
+            if temp_dir.exists():
+                shutil.rmtree(temp_dir)
+                
+        return self.graph
+
+    def _add_operation_chain(self, source_graph: Graph, target_graph: Graph, pc_uri: URIRef):
+        """Add all operations in chain to target graph (helper for N3 binding)"""
+        # Start from first operation
+        first_op = source_graph.value(pc_uri, tb.nextStep)
+        if not first_op:
+            return
+        
+        current = first_op
+        visited = set()
+        
+        while current and current not in visited:
+            visited.add(current)
+            
+            # Add all triples about this operation
+            for p, o in source_graph.predicate_objects(current):
+                target_graph.add((current, p, o))
+                # Include hasInput details
+                if isinstance(o, (URIRef, BNode)) and p == tb.hasInput:
+                    for ip, io in source_graph.predicate_objects(o):
+                        target_graph.add((o, ip, io))
+            
+            # Move to next operation
+            current = source_graph.value(current, tb.nextStep)
+            
+    def _resolve_eye_path(self) -> str:
+        """Resolve path to eye reasoner"""
+        # 1. Check PATH
+        if shutil.which("eye"):
+            return "eye"
+            
+        # 2. Check node_modules in likely locations
+        # Current dir
+        cwd_node = Path.cwd() / "node_modules" / ".bin" / "eye"
+        if cwd_node.exists():
+            return str(cwd_node)
+            
+        # Project root (up 3 levels from executor)
+        project_node = Path(__file__).parent.parent.parent.parent / "node_modules" / ".bin" / "eye"
+        if project_node.exists():
+            return str(project_node)
+            
+        raise FileNotFoundError("Could not find 'eye' reasoner. Please install it via npm or add to PATH.")
+    
     def execute(self, pc_uri: URIRef) -> Tuple[Any, Optional[URIRef]]:
         """Execute a PolicyChecker and optionally annotate with execution metadata
         
@@ -119,6 +247,9 @@ class SemanticN3Executor:
         print(f"Execution Mode: COMPOSED UDF")
         print(f"{'='*60}\n")
         
+        # Step 0: Apply N3 Parameter Bindings
+        self.apply_n3_bindings(pc_uri)
+        
         # Find first operation
         first_op = self.graph.value(pc_uri, tb.nextStep)
         if not first_op:
@@ -129,7 +260,7 @@ class SemanticN3Executor:
         execution_start = datetime.now()
         
         # Execute operation chain using composed UDF approach
-        result = self._execute_chain_composed(first_op)
+        result, composed_code = self._execute_chain_composed(first_op)
         
         # Calculate execution time
         end_time = time.time()
@@ -147,7 +278,8 @@ class SemanticN3Executor:
                 result=result,
                 execution_start=execution_start,
                 execution_end=execution_end,
-                execution_duration=execution_duration
+                execution_duration=execution_duration,
+                composed_code=composed_code
             )
             print(f"📊 Validation report created: {report_uri}\n")
         
@@ -227,6 +359,11 @@ class SemanticN3Executor:
         composed_code = "def composed_pipeline(initial_data=None):\n"
         
         for i, op in enumerate(operations):
+            # Ensure implementation is linked in the graph
+            if not self.graph.value(op['uri'], tb.hasImplementation):
+                self.graph.add((op['uri'], tb.hasImplementation, op['impl']))
+                print(f"    + Linked implementation {op['impl']} to {op['uri']}")
+
             if i == 0:
                 # First operation
                 composed_code += f"    # Step {op['num']}: {op['type']}\n"
@@ -269,7 +406,7 @@ class SemanticN3Executor:
         
         print(f"✓ Composed UDF executed successfully\n")
         
-        return result
+        return result, composed_code
     
     def execute_operation(self, op_uri: URIRef, previous_result: Any, op_num: int) -> Any:
         """Execute a single operation using semantic properties"""
@@ -341,46 +478,40 @@ class SemanticN3Executor:
     
     def get_semantic_bindings(self, op_uri: URIRef, previous_result: Any) -> Dict[str, Any]:
         """
-        Extract parameter bindings from ROLE-ANNOTATED hasInput nodes.
+        Extract parameter bindings from N3-INFERRED tb:boundParameter nodes.
         
-        Each hasInput points to a blank node with:
-            tb:value - The actual value
-            tb:role - The semantic role ("filePath", "previousResult", "threshold", etc.)
-        
-        This approach keeps hasInput for analysis while using roles for unambiguous binding!
+        The N3 rules have already transformed:
+            hasInput(role="filePath", value=X) -> boundParameter(name="p", value=X)
         """
         bindings = {}
         
-        # Iterate through all hasInput nodes
-        for input_node in self.graph.objects(op_uri, tb.hasInput):
-            # Get role and value from the input node
-            role = self.graph.value(input_node, tb.role)
-            value = self.graph.value(input_node, tb.value)
+        # Iterate through all boundParameter nodes created by/inferred for this operation
+        for bound_param in self.graph.objects(op_uri, tb.boundParameter):
+            name_node = self.graph.value(bound_param, tb.name)
+            value_node = self.graph.value(bound_param, tb.value)
             
-            if not role or not value:
+            if not name_node or not value_node:
                 continue
+                
+            name = str(name_node)
             
-            role_str = str(role)
-            
-            # Map role to parameter name
-            if role_str == "filePath":
-                bindings['p'] = str(value)
-            
-            elif role_str == "previousResult":
-                bindings['data'] = previous_result
-            
-            elif role_str == "timestampAttribute":
-                bindings['ts_attr'] = self._extract_local_name(value)
-            
-            elif role_str == "targetAttribute":
-                bindings['attr'] = self._extract_local_name(value)
-            
-            elif role_str == "threshold":
-                bindings['threshold'] = value.toPython() if isinstance(value, Literal) else value
-            
-            elif role_str == "operator":
-                bindings['operator'] = str(value)
-        
+            # Handle special dynamic parameters
+            if name == "data":
+                 # 'data' parameter usually expects the dataframe from the pipeline
+                 # If previous_result is available, use it.
+                 # The N3 rule might bind it to a placeholder URI or previous op URI
+                 if previous_result is not None:
+                     bindings['data'] = previous_result
+                 continue # Skip adding the graph value for 'data'
+
+            # Convert value based on type/content
+            if isinstance(value_node, Literal):
+                # Literals (int, float, bool)
+                bindings[name] = value_node.toPython()
+            else:
+                # URIs or strings
+                bindings[name] = str(value_node)
+
         return bindings
     
     def _extract_local_name(self, uri: URIRef) -> str:
@@ -457,7 +588,7 @@ class SemanticN3Executor:
     
     def _create_validation_report(self, pc_uri: URIRef, result: Any, 
                                    execution_start: datetime, execution_end: datetime,
-                                   execution_duration: float) -> URIRef:
+                                   execution_duration: float, composed_code: str = None) -> URIRef:
         """Create a validation report node in the graph with execution metadata
         
         Args:
@@ -490,6 +621,10 @@ class SemanticN3Executor:
         self.graph.add((report_uri, tb.executionDuration, 
                        Literal(execution_duration, datatype=XSD.float)))
         
+        # Add generated code if available
+        if composed_code:
+            self.graph.add((report_uri, tb.hasComposedCode, Literal(composed_code)))
+        
         # Add result metadata
         validation_status = self._determine_validation_status(result)
         self.graph.add((report_uri, tb.validationStatus, Literal(validation_status)))
@@ -506,6 +641,11 @@ class SemanticN3Executor:
             # Add column names
             for col in result.columns:
                 self.graph.add((report_uri, tb.resultColumn, Literal(str(col))))
+        elif isinstance(result, pd.Series):
+             self.graph.add((report_uri, tb.resultRowCount,
+                           Literal(len(result), datatype=XSD.integer)))
+             self.graph.add((report_uri, tb.resultValue,
+                           Literal(str(result.head().to_dict()))))
         elif isinstance(result, (int, float)):
             self.graph.add((report_uri, tb.resultValue, 
                            Literal(result, datatype=XSD.float)))
@@ -538,6 +678,9 @@ class SemanticN3Executor:
         elif isinstance(result, (int, float)):
             # Numeric results are considered passed if > 0
             return "PASSED" if result > 0 else "FAILED"
+        elif isinstance(result, pd.Series) and result.dtype == bool:
+            # Boolean series must be all True
+            return "PASSED" if result.all() else "FAILED"
         else:
             # For other types, just mark as completed
             return "COMPLETED"
@@ -609,6 +752,23 @@ class SemanticN3Executor:
         return sdm_graph
 
 
+def _copy_subgraph(source_graph: Graph, target_graph: Graph, node: Any, visited: set = None) -> None:
+    """Recursively copy a subgraph (CBD-like) for a node, following BNodes"""
+    if visited is None:
+        visited = set()
+        
+    if node in visited:
+        return
+    visited.add(node)
+    
+    # Copy all outgoing triples
+    for p, o in source_graph.predicate_objects(node):
+        target_graph.add((node, p, o))
+        # Recurse on BNodes
+        if isinstance(o, BNode):
+            _copy_subgraph(source_graph, target_graph, o, visited)
+
+
 def load_policy_checker(pc_file: str) -> tuple[Graph, URIRef]:
     """Load PolicyChecker from file and return graph + PC URI"""
     g = Graph()
@@ -626,13 +786,14 @@ def load_policy_checker(pc_file: str) -> tuple[Graph, URIRef]:
     return g, pc_uri
 
 
-def merge_validation_reports_to_sdm(pc_graph: Graph, sdm_file: str, output_sdm_file: str) -> Graph:
+def merge_validation_reports_to_sdm(pc_graph: Graph, sdm_file: str, output_sdm_file: str, metadata_file: str = None) -> Graph:
     """Merge validation reports from PolicyChecker graph to SDM (standalone function)
     
     Args:
         pc_graph: Graph containing PolicyCheckers with validation reports
         sdm_file: Path to original SDM file
         output_sdm_file: Path to save merged SDM
+        metadata_file: Path to code metadata file (JSON-LD) to merge implementation details
         
     Returns:
         Merged SDM graph
@@ -655,6 +816,41 @@ def merge_validation_reports_to_sdm(pc_graph: Graph, sdm_file: str, output_sdm_f
     # Find all validation reports
     reports = list(pc_graph.subjects(RDF.type, tb.ValidationReport))
     print(f"\n✓ Found {len(reports)} validation report(s) in PolicyChecker graph")
+    
+    # Copy implementation links and details
+    impl_triples = 0
+    meta_graph = None
+    
+    # Load metadata graph if file provided
+    if metadata_file and os.path.exists(metadata_file):
+        try:
+            print(f"  Loading metadata from: {metadata_file}")
+            meta_graph = Graph()
+            meta_graph.parse(metadata_file, format='json-ld')
+            print(f"  ✓ Loaded {len(meta_graph)} metadata triples")
+        except Exception as e:
+            print(f"  ⚠ Failed to load metadata (dependency issue?): {e}")
+
+    # Find used implementations
+    used_impls = set(pc_graph.objects(None, tb.hasImplementation))
+    print(f"  Found {len(used_impls)} used implementation(s)")
+
+    for impl_uri in used_impls:
+        # 1. Link in SDM (Executor -> SDM)
+        # Find who uses it in pc_graph
+        for s in pc_graph.subjects(tb.hasImplementation, impl_uri):
+            sdm_graph.add((s, tb.hasImplementation, impl_uri))
+            impl_triples += 1
+            
+        # 2. Copy metadata (Metadata -> SDM)
+        if meta_graph:
+            # Copy all details for this implementation
+            _copy_subgraph(meta_graph, sdm_graph, impl_uri)
+            # Count added triples (approximation)
+            added = len(list(meta_graph.predicate_objects(impl_uri)))
+            impl_triples += added
+
+    print(f"✓ Copied/Merged ~{impl_triples} implementation-related triples")
     
     # Copy validation report triples
     report_triples = 0
@@ -772,13 +968,18 @@ if __name__ == "__main__":
     
     # Execute ALL PolicyCheckers
     results = []
-    for i, pc_uri in enumerate(pc_uris, 1):
-        print(f"\n{'='*80}")
-        print(f"EXECUTING POLICYCHECKER {i}/{len(pc_uris)}")
-        print(f"{'='*80}")
-        
-        result = executor.execute(pc_uri)
-        results.append(result)
+    try:
+        for i, pc_uri in enumerate(pc_uris, 1):
+            print(f"\n{'='*80}")
+            print(f"EXECUTING POLICYCHECKER {i}/{len(pc_uris)}")
+            print(f"{'='*80}")
+            
+            result = executor.execute(pc_uri)
+            results.append(result)
+    except Exception:
+        import traceback
+        traceback.print_exc(file=sys.stdout)
+        sys.exit(1)
     
     print(f"\n{'='*80}")
     print(f"✅ Executed {len(pc_uris)} PolicyChecker(s)")
@@ -792,7 +993,8 @@ if __name__ == "__main__":
     merged_sdm = merge_validation_reports_to_sdm(
         pc_graph=executor.graph,
         sdm_file=sdm_file,
-        output_sdm_file=output_sdm
+        output_sdm_file=output_sdm,
+        metadata_file=metadata_file
     )
     
     print(f"✅ Validation reports successfully merged to: {output_sdm}")

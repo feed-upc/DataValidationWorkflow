@@ -1,0 +1,93 @@
+@prefix abox: <http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/abox#> .
+@prefix odrl: <http://www.w3.org/ns/odrl/2/> .
+@prefix tbox: <http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/tbox#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+abox:genid-1f08b6a5dff9 a tbox:PolicyChecker ;
+    tbox:accordingTo abox:DQRP2 ;
+    tbox:nextStep abox:genid-c9201ca3caff ;
+    tbox:validates abox:Patient_Summary .
+
+abox:genid-6553cdfb1a44 a tbox:PolicyChecker ;
+    tbox:accordingTo abox:DQRP1 ;
+    tbox:nextStep abox:genid-00c3ea308adb ;
+    tbox:validates abox:Patient_Summary .
+
+abox:genid-00c3ea308adb a tbox:Operation ;
+    tbox:hasAbstract abox:LoadData ;
+    tbox:hasInput abox:genid-e16ef98ac0c1 ;
+    tbox:hasOutput abox:data ;
+    tbox:nextStep abox:genid-222269af18a4 .
+
+abox:genid-09d0fecad123 tbox:role "filePath" ;
+    tbox:value "/home/acraf/psr/Fdatavalidation-1/DataProductLayer/DataProduct_EHDS_AMR/Data/Patient_Summary.csv" .
+
+abox:genid-222269af18a4 a tbox:Operation ;
+    tbox:hasAbstract abox:CheckFreshness ;
+    tbox:hasInput abox:genid-9b6a8e15a137,
+        abox:genid-ad5d9d381b9c ;
+    tbox:hasOutput abox:data ;
+    tbox:nextStep abox:genid-88cf6bf26de0 .
+
+abox:genid-410b25a1af20 tbox:role "threshold" ;
+    tbox:value 100 .
+
+abox:genid-752db7decc55 a tbox:Operation ;
+    tbox:hasAbstract abox:qM ;
+    tbox:hasInput abox:genid-a095009c5661,
+        abox:genid-b1d7d51196eb ;
+    tbox:hasOutput abox:score ;
+    tbox:nextStep abox:genid-8f1b9be07b50 .
+
+abox:genid-7c5e0cdc2eec tbox:role "operator" ;
+    tbox:value abox:genid-7aeed8305c02 .
+
+abox:genid-88cf6bf26de0 a tbox:Operation ;
+    tbox:hasAbstract odrl:Constraint ;
+    tbox:hasInput abox:genid-7c5e0cdc2eec,
+        abox:genid-c71b509aac7e,
+        abox:genid-d2e207f1ad19 ;
+    tbox:hasOutput abox:data ;
+    tbox:isTerminal true .
+
+abox:genid-89d3d1ed9873 tbox:role "previousResult" ;
+    tbox:value abox:data .
+
+abox:genid-8f1b9be07b50 a tbox:Operation ;
+    tbox:hasAbstract odrl:Constraint ;
+    tbox:hasInput abox:genid-410b25a1af20,
+        abox:genid-89d3d1ed9873,
+        abox:genid-ab1c0ece399b ;
+    tbox:hasOutput abox:boolean ;
+    tbox:isTerminal true .
+
+abox:genid-9b6a8e15a137 tbox:role "timestampAttribute" ;
+    tbox:value abox:lastUpdated .
+
+abox:genid-a095009c5661 tbox:role "targetAttribute" ;
+    tbox:value abox:nationalHealthcarePatientID .
+
+abox:genid-ab1c0ece399b tbox:role "operator" ;
+    tbox:value odrl:gteq .
+
+abox:genid-ad5d9d381b9c tbox:role "previousResult" ;
+    tbox:value abox:data .
+
+abox:genid-b1d7d51196eb tbox:role "previousResult" ;
+    tbox:value abox:data .
+
+abox:genid-c71b509aac7e tbox:role "previousResult" ;
+    tbox:value abox:data .
+
+abox:genid-c9201ca3caff a tbox:Operation ;
+    tbox:hasAbstract abox:LoadData ;
+    tbox:hasInput abox:genid-09d0fecad123 ;
+    tbox:hasOutput abox:data ;
+    tbox:nextStep abox:genid-752db7decc55 .
+
+abox:genid-d2e207f1ad19 tbox:role "threshold" ;
+    tbox:value 30 .
+
+abox:genid-e16ef98ac0c1 tbox:role "filePath" ;
+    tbox:value "/home/acraf/psr/Fdatavalidation-1/DataProductLayer/DataProduct_EHDS_AMR/Data/Patient_Summary.csv" .
+
