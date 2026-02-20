@@ -20,7 +20,7 @@ The engine operates in two main phases:
 
 To translate conceptual Data Quality Requirement Patterns into executable computational governance, the architecture employs an end-to-end, ontology-driven validation pipeline.
 
-![Validation Framework Workflow](../../demo/demo_images/framework-workflow.png)
+![Validation Framework Workflow](./framework-workflow.png)
 
 This engine evaluates the specified ODRL policies over the target datasets automatically in four phases:
 
