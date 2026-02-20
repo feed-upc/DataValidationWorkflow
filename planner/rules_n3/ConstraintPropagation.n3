@@ -147,3 +147,21 @@
     # Create resolved target assertion that Quality rules can use
     ?permission tb:physicalAttribute ?physicalAttr .
 } .
+
+# Rule 7: Direct Attribute Target (Fix)
+# When a permission targets a physical Asset/Attribute directly (used in tb:mfrom)
+{
+    # Quality policy with permission targeting a physical attribute
+    ?policy a dqv:QualityPolicy ;
+            odrl:permission ?permission .
+    
+    ?permission odrl:target ?physicalAttr .
+    
+    # Check if target is used as physical source in a mapping
+    ?mapping tb:mfrom ?physicalAttr .
+}
+=>
+{
+    # Propagate it as the resolved attribute
+    ?permission tb:physicalAttribute ?physicalAttr .
+} .

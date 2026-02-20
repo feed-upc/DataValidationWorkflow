@@ -197,3 +197,26 @@
   ?op tb:hasImplementation ab:ImpQualityMetric .
 } .
 
+# ==============================================================================
+# RULE 9: Bind validity metric implementation
+# ==============================================================================
+
+{
+  ?op tb:hasAbstract ab:qM_Validity .
+}
+=>
+{
+  ?op tb:hasImplementation ab:ImpQualityMetricValidity .
+} .
+
+# ==============================================================================
+# RULE 10: Bind fairness metric implementation
+# ==============================================================================
+
+{
+  ?op tb:hasAbstract ab:qM_Fairness .
+}
+=>
+{
+  ?op tb:hasImplementation ab:ImpQualityMetricFairness .
+} .

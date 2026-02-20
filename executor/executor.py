@@ -24,6 +24,7 @@ import subprocess
 import tempfile
 import os
 import shutil
+import numpy as np
 from typing import Any, Dict, Optional, Tuple
 from rdflib import Graph, Namespace, URIRef, Literal, RDF, BNode, XSD
 
@@ -681,6 +682,10 @@ class SemanticN3Executor:
         elif isinstance(result, pd.Series) and result.dtype == bool:
             # Boolean series must be all True
             return "PASSED" if result.all() else "FAILED"
+        elif isinstance(result, (np.bool_, np.bool)):
+            return "PASSED" if result else "FAILED"
+        elif isinstance(result, (np.integer, np.floating)):
+             return "PASSED" if result > 0 else "FAILED"
         else:
             # For other types, just mark as completed
             return "COMPLETED"

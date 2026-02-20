@@ -161,6 +161,47 @@
       "tb:dependsOn": []
     },
     {
+      "@id": "ab:ImpConstraintEq",
+      "@type": "tb:Implementation",
+      "tb:forOp": [
+        {
+          "@id": "odrl:Constraint"
+        }
+      ],
+      "tb:forOperator": "odrl:eq",
+      "tb:forType": [
+        {
+          "@id": "ab:Tabular"
+        }
+      ],
+      "tb:hasParameters": [
+        {
+          "tb:name": "data",
+          "tb:role": "previousResult",
+          "tb:type": "DataFrame",
+          "tb:description": "Data from previous operation"
+        },
+        {
+          "tb:name": "threshold",
+          "tb:role": "threshold",
+          "tb:type": "number",
+          "tb:description": "Required value"
+        },
+        {
+          "tb:name": "operator",
+          "tb:role": "operator",
+          "tb:type": "string",
+          "tb:description": "ODRL operator URI"
+        }
+      ],
+      "tb:hasCode": [
+        {
+          "tb:code": "data == threshold"
+        }
+      ],
+      "tb:dependsOn": []
+    },
+    {
       "@id": "ab:ImpQualityMetric",
       "@type": "tb:Implementation",
       "rdfs:comment": "DQRP2 (DQR1EH): Completeness check - calculates percentage of non-null values for an attribute",
@@ -191,6 +232,87 @@
       "tb:hasCode": [
         {
           "tb:code": "(1 - data[attr].isna().sum() / len(data)) * 100"
+        }
+      ],
+      "tb:dependsOn": [
+        {
+          "tb:name": "pandas"
+        }
+      ]
+    },
+    {
+      "@id": "ab:ImpQualityMetricValidity",
+      "@type": "tb:Implementation",
+      "rdfs:comment": "DQRP3: Validity check - percentage of values adhering to ISO 3166 alpha-2",
+      "tb:forOp": [
+        {
+          "@id": "ab:qM_Validity"
+        }
+      ],
+      "tb:forType": [
+        {
+          "@id": "ab:Tabular"
+        }
+      ],
+      "tb:hasParameters": [
+        {
+          "tb:name": "data",
+          "tb:role": "previousResult",
+          "tb:type": "DataFrame",
+          "tb:description": "Data to assess"
+        },
+        {
+          "tb:name": "attr",
+          "tb:role": "attributeReference",
+          "tb:type": "string",
+          "tb:description": "Column to check for validity (e.g., countryOfAffiliation)"
+        }
+      ],
+      "tb:hasCode": [
+        {
+          "tb:code": "(data[attr].astype(str).str.upper().isin({country.alpha_2 for country in __import__('pycountry').countries})).sum() / len(data) * 100"
+        }
+      ],
+      "tb:dependsOn": [
+        {
+          "tb:name": "pandas"
+        },
+        {
+          "tb:name": "pycountry"
+        }
+      ]
+    },
+    {
+      "@id": "ab:ImpQualityMetricFairness",
+      "@type": "tb:Implementation",
+      "rdfs:comment": "DQRP6 (DQR5EH): Fairness check - calculates max percentage of any discrete group",
+      "tb:forOp": [
+        {
+          "@id": "ab:qM_Fairness"
+        }
+      ],
+      "tb:forType": [
+        {
+          "@id": "ab:Tabular"
+        }
+      ],
+      "tb:hasParameters": [
+        {
+          "tb:name": "data",
+          "tb:role": "previousResult",
+          "tb:type": "DataFrame",
+          "tb:description": "Data to assess"
+        },
+        {
+          "tb:name": "attr",
+          "tb:role": "attributeReference",
+          "tb:type": "string",
+          "tb:description": "Column to check for fairness (e.g., gender)"
+        }
+      ],
+      "tb:hasCode": [
+        {
+          "tb:code": "data[attr].value_counts(normalize=True).max() * 100"
         }
       ],
       "tb:dependsOn": [
