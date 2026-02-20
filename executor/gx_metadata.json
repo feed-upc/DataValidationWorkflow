@@ -1,0 +1,193 @@
+{
+    "@context": {
+        "tb": "http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/tbox#",
+        "ab": "http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/abox#",
+        "odrl": "http://www.w3.org/ns/odrl/2/"
+    },
+    "@graph": [
+        {
+            "@id": "ab:Imp1",
+            "@type": "tb:Implementation",
+            "tb:forOp": [
+                {
+                    "@id": "ab:LoadData"
+                }
+            ],
+            "tb:forType": [
+                {
+                    "@id": "ab:Tabular"
+                }
+            ],
+            "tb:gxExpectationType": "load_data",
+            "tb:dependsOn": [
+                {
+                    "tb:name": "great_expectations"
+                }
+            ]
+        },
+        {
+            "@id": "ab:ImpQualityCompleteness",
+            "@type": "tb:Implementation",
+            "rdfs:comment": "DQRP2 (DQR1EH): Completeness check",
+            "tb:forOp": [
+                {
+                    "@id": "ab:qM"
+                }
+            ],
+            "tb:forType": [
+                {
+                    "@id": "ab:Tabular"
+                }
+            ],
+            "tb:gxExpectationType": "expect_column_values_to_not_be_null",
+            "tb:dependsOn": [
+                {
+                    "tb:name": "great_expectations"
+                }
+            ]
+        },
+        {
+            "@id": "ab:ImpQualityMetricValidity",
+            "@type": "tb:Implementation",
+            "rdfs:comment": "DQRP3: Validity check - percentage of values adhering to ISO 3166 alpha-2",
+            "tb:forOp": [
+                {
+                    "@id": "ab:qM_Validity"
+                }
+            ],
+            "tb:forType": [
+                {
+                    "@id": "ab:Tabular"
+                }
+            ],
+            "tb:gxExpectationType": "expect_column_values_to_be_in_set",
+            "tb:dependsOn": [
+                {
+                    "tb:name": "great_expectations"
+                },
+                {
+                    "tb:name": "pycountry"
+                }
+            ]
+        },
+        {
+            "@id": "ab:ImpQualityMetricFairness",
+            "@type": "tb:Implementation",
+            "rdfs:comment": "DQRP6 (DQR5EH): Fairness check - 50/50 balance",
+            "tb:forOp": [
+                {
+                    "@id": "ab:qM_Fairness"
+                }
+            ],
+            "tb:forType": [
+                {
+                    "@id": "ab:Tabular"
+                }
+            ],
+            "tb:gxExpectationType": "expect_column_kl_divergence_to_be_less_than",
+            "tb:dependsOn": [
+                {
+                    "tb:name": "great_expectations"
+                }
+            ]
+        },
+        {
+            "@id": "ab:ImpCheckFreshness",
+            "@type": "tb:Implementation",
+            "rdfs:comment": "Check Freshness",
+            "tb:forOp": [
+                {
+                    "@id": "ab:CheckFreshness"
+                }
+            ],
+            "tb:forType": [
+                {
+                    "@id": "ab:Tabular"
+                }
+            ],
+            "tb:gxExpectationType": "expect_column_values_to_be_between",
+            "tb:dependsOn": [
+                {
+                    "tb:name": "great_expectations"
+                },
+                {
+                    "tb:name": "datetime"
+                }
+            ]
+        },
+        {
+            "@id": "ab:ImpCheckConsistency",
+            "@type": "tb:Implementation",
+            "tb:forOp": [
+                {
+                    "@id": "ab:CheckConsistency"
+                }
+            ],
+            "tb:forType": [
+                {
+                    "@id": "ab:Tabular"
+                }
+            ],
+            "tb:gxExpectationType": "expect_column_values_to_be_in_type_list",
+            "tb:dependsOn": [
+                {
+                    "tb:name": "great_expectations"
+                }
+            ]
+        },
+        {
+            "@id": "ab:ImpCheckValidity",
+            "@type": "tb:Implementation",
+            "tb:forOp": [
+                {
+                    "@id": "ab:CheckValidity"
+                }
+            ],
+            "tb:forType": [
+                {
+                    "@id": "ab:Tabular"
+                }
+            ],
+            "tb:gxExpectationType": "expect_column_values_to_match_regex",
+            "tb:dependsOn": [
+                {
+                    "tb:name": "great_expectations"
+                }
+            ]
+        },
+        {
+            "@id": "ab:ImpConstraintLteq",
+            "@type": "tb:Implementation",
+            "tb:forOp": [
+                {
+                    "@id": "odrl:Constraint"
+                }
+            ],
+            "tb:forOperator": "odrl:lteq",
+            "tb:forType": [
+                {
+                    "@id": "ab:Tabular"
+                }
+            ],
+            "tb:gxExpectationType": "constraint_lteq",
+            "tb:dependsOn": []
+        },
+        {
+            "@id": "ab:ImpConstraintEq",
+            "@type": "tb:Implementation",
+            "tb:forOp": [
+                {
+                    "@id": "odrl:Constraint"
+                }
+            ],
+            "tb:forOperator": "odrl:eq",
+            "tb:forType": [
+                {
+                    "@id": "ab:Tabular"
+                }
+            ],
+            "tb:gxExpectationType": "constraint_eq",
+            "tb:dependsOn": []
+        }
+    ]
+}

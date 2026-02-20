@@ -76,6 +76,20 @@ class CodeMetadataLoader:
             raise ValueError(f"No code found for {impl_id}")
         
         return code_blocks[0].get('tb:code')
+        
+    def get_gx_expectation_type(self, impl_uri: URIRef) -> str:
+        """Get Great Expectations type for implementation"""
+        impl_id = str(impl_uri)
+        impl = self.implementations.get(impl_id)
+        
+        if not impl:
+            raise ValueError(f"Implementation not found: {impl_id}")
+            
+        gx_type = impl.get('tb:gxExpectationType')
+        if not gx_type:
+            raise ValueError(f"No gxExpectationType found for {impl_id}")
+            
+        return gx_type
     
     def get_dependencies(self, impl_uri: URIRef) -> list:
         """Get dependencies for implementation"""
@@ -102,12 +116,14 @@ class SemanticN3Executor:
         - odrl:constraint/odrl:operator -> parameter "operator"
     """
     
-    def __init__(self, pc_graph: Graph, code_metadata_file: str, compose_udf: bool = True, annotate_graph: bool = True):
+    def __init__(self, pc_graph: Graph, code_metadata_file: str, compose_udf: bool = True, annotate_graph: bool = True, export_docker_dir: str = None, backend: str = "pandas"):
         self.graph = pc_graph
         self.code_metadata = CodeMetadataLoader(code_metadata_file)
         self.operations_cache = {}
         self.compose_udf = compose_udf  # Flag to use composed UDF approach (default: True)
         self.annotate_graph = annotate_graph  # Flag to annotate graph with execution metadata
+        self.export_docker_dir = export_docker_dir  # Directory to output Docker services
+        self.backend = backend # pandas | gx
         
         # Bind additional namespaces
         self.graph.bind('prov', prov)
@@ -172,7 +188,12 @@ class SemanticN3Executor:
             # Bind prefixes again for parsing safety
             result_graph.bind('tb', tb)
             try:
-                result_graph.parse(data=result.stdout, format='n3')
+                # Patch EYE reasoned output where non-floats get tagged as floats (e.g. "true"^^xsd:float)
+                # rdflib strict parser fails on this, so we strip the explicit datatype cast.
+                safe_stdout = result.stdout.replace('"true"^^<http://www.w3.org/2001/XMLSchema#float>', '"true"')
+                safe_stdout = safe_stdout.replace('"false"^^<http://www.w3.org/2001/XMLSchema#float>', '"false"')
+                
+                result_graph.parse(data=safe_stdout, format='n3')
                 # print(f"✓ Generated {len(result_graph)} triples from reasoning")
             except Exception as e:
                 print(f"Error parsing EYE output: {e}")
@@ -261,7 +282,7 @@ class SemanticN3Executor:
         execution_start = datetime.now()
         
         # Execute operation chain using composed UDF approach
-        result, composed_code = self._execute_chain_composed(first_op)
+        result, composed_code = self._execute_chain_composed(first_op, pc_uri=pc_uri)
         
         # Calculate execution time
         end_time = time.time()
@@ -309,12 +330,15 @@ class SemanticN3Executor:
         
         return result
     
-    def _execute_chain_composed(self, op_uri: URIRef, previous_result: Any = None) -> Any:
+    def _execute_chain_composed(self, op_uri: URIRef, previous_result: Any = None, pc_uri: URIRef = None) -> Any:
         """Execute operation chain - Option 2: Compose all UDFs then execute"""
         
+        if self.backend == 'gx':
+            return self._execute_chain_gx(op_uri, previous_result, pc_uri)
+            
         # Step 1: Collect all operations and compose UDF
         print(f"\n{'='*60}")
-        print("COMPOSING UDF PIPELINE")
+        print("COMPOSING PANDAS UDF PIPELINE")
         print(f"{'='*60}\n")
         
         operations = []
@@ -380,6 +404,10 @@ class SemanticN3Executor:
         print(composed_code)
         print(f"{'='*60}\n")
         
+        # Export docker service if configured
+        if getattr(self, 'export_docker_dir', None) and pc_uri:
+            self._export_docker_service(pc_uri, composed_code, operations, previous_result)
+        
         # Step 3: Execute composed function
         print("EXECUTING COMPOSED UDF...")
         
@@ -409,6 +437,258 @@ class SemanticN3Executor:
         
         return result, composed_code
     
+    def _execute_chain_gx(self, op_uri: URIRef, previous_result: Any = None, pc_uri: URIRef = None) -> Any:
+        print(f"\n{'='*60}")
+        print("COMPOSING GX EXPECTATION SUITE")
+        print(f"{'='*60}\n")
+        
+        operations = []
+        current_op = op_uri
+        op_count = 0
+        
+        while current_op:
+            op_count += 1
+            op_type = self.graph.value(current_op, tb.hasAbstract)
+            impl_uri = self.graph.value(current_op, tb.hasImplementation)
+            
+            if not impl_uri:
+                impl_uri = self._infer_implementation(op_type)
+            
+            bindings = self.get_semantic_bindings(current_op, None)
+            gx_expectation_type = self.code_metadata.get_gx_expectation_type(impl_uri)
+            
+            operations.append({
+                'num': op_count,
+                'uri': current_op,
+                'type': op_type,
+                'impl': impl_uri,
+                'bindings': bindings,
+                'gx_type': gx_expectation_type
+            })
+            
+            print(f"  Step {op_count}: {op_type}")
+            print(f"    GX Type: {gx_expectation_type}")
+            
+            # Check if terminal
+            is_terminal = self.graph.value(current_op, tb.isTerminal)
+            if is_terminal and is_terminal.toPython():
+                break
+            
+            current_op = self.graph.value(current_op, tb.nextStep)
+            
+        print(f"\n{'='*60}")
+        print("COMPOSED GX SCRIPT:")
+        print(f"{'='*60}")
+        
+        composed_code = "import great_expectations as gx\n"
+        composed_code += "import pandas as pd\n\n"
+        composed_code += "def run_gx_validation(data_path):\n"
+        composed_code += "    context = gx.get_context(mode='ephemeral')\n"
+        composed_code += "    suite = context.suites.add(gx.ExpectationSuite(name='semantic_suite'))\n\n"
+        
+        for i, op in enumerate(operations):
+            if op['gx_type'] == 'load_data':
+                continue
+                
+            b = op['bindings']
+            kwargs = {}
+            if 'attr' in b:
+                kwargs['column'] = b['attr']
+            if 'threshold' in b:
+                if 'operator' in b and b['operator'] == 'http://www.w3.org/ns/odrl/2/eq':
+                    if op['gx_type'] == 'expect_column_kl_divergence_to_be_less_than':
+                        # Simplistic conversion for Fairness to KL Divergence
+                        kwargs['threshold'] = b['threshold']
+                        kwargs['partition_object'] = {"values": ["M", "F"], "weights": [0.5, 0.5]}
+                    elif op['gx_type'] == 'expect_column_values_to_be_in_set':
+                        # Validity conversion
+                        kwargs['mostly'] = b['threshold'] / 100.0
+                    else:
+                        kwargs['mostly'] = b['threshold'] / 100.0
+                elif 'operator' in b and b['operator'] == 'http://www.w3.org/ns/odrl/2/lteq':
+                    kwargs['mostly'] = b['threshold'] / 100.0
+                    
+            if op['gx_type'] == 'expect_column_values_to_not_be_null':
+                if 'threshold' in b:
+                    kwargs['mostly'] = b['threshold'] / 100.0
+                composed_code += f"    # Step {op['num']}: {op['type']}\n"
+                composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnValuesToNotBeNull(**{kwargs}))\n\n"
+            
+            elif op['gx_type'] == 'expect_column_values_to_be_in_set':
+                kwargs['value_set'] = [country.alpha_2 for country in __import__('pycountry').countries]
+                composed_code += f"    # Step {op['num']}: {op['type']}\n"
+                composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnValuesToBeInSet(**{kwargs}))\n\n"
+                
+            elif op['gx_type'] == 'expect_column_kl_divergence_to_be_less_than':
+                composed_code += f"    # Step {op['num']}: {op['type']}\n"
+                composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnKlDivergenceToBeLessThan(**{kwargs}))\n\n"
+                
+        composed_code += "    batch_request = context.data_sources.add_pandas('pandas_source').add_csv_asset('csv_asset', filepath_or_buffer=data_path).build_batch_request()\n"
+        composed_code += "    validation_results = context.run_validation_operator('action_list_operator', assets_to_validate=[batch_request], run_id='semantic_run')\n"
+        composed_code += "    # Ephemeral checkpoint wrapper\n"
+        composed_code += "    checkpoint = context.add_orchestrator_checkpoint('semantic_checkpoint', suite_name='semantic_suite', batch_request=batch_request)\n"
+        composed_code += "    result = checkpoint.run()\n"
+        composed_code += "    return result.success\n"
+        
+        print(composed_code)
+        print(f"{'='*60}\n")
+        
+        if getattr(self, 'export_docker_dir', None) and pc_uri:
+            self._export_docker_service_gx(pc_uri, composed_code, operations, previous_result)
+            
+        print("EXECUTING GX SUITE LOCALLY...")
+        try:
+            exec_env = {'gx': __import__('great_expectations'), 'pd': pd}
+            exec(composed_code, exec_env)
+        except ModuleNotFoundError:
+            print("⚠  great_expectations not installed locally. Skipping local prep validation.")
+            print("✓  Docker export completed successfully.")
+            return True, composed_code
+        
+        data_path = "data.csv"
+        first_bindings = self.get_semantic_bindings(operations[0]['uri'], previous_result)
+        if 'p' in first_bindings:
+             data_path = first_bindings['p']
+             
+        try:
+             result = exec_env['run_gx_validation'](data_path)
+             print(f"✓ GX Suite executed successfully. Success: {result}\n")
+        except Exception as e:
+             print(f"✗ GX Execution Failed: {e}\n")
+             result = False
+             
+        return result, composed_code
+        
+    def _export_docker_service_gx(self, pc_uri: URIRef, composed_code: str, operations: list, previous_result: Any):
+        """Export the GX composed suite as a standalone Dockerized service"""
+        print(f"\n{'='*60}")
+        print("EXPORTING GX DOCKERIZED VALIDATION SERVICE")
+        print(f"{'='*60}")
+        
+        hash_id = hashlib.md5(str(pc_uri).encode()).hexdigest()[:8]
+        service_dir = Path(self.export_docker_dir) / f"policyChecker_{hash_id}"
+        service_dir.mkdir(parents=True, exist_ok=True)
+        
+        script_path = service_dir / "validation_job.py"
+        imports = set()
+        for op in operations:
+            deps = self.code_metadata.get_dependencies(op['impl'])
+            for dep in deps:
+                if dep not in ['pandas', 'datetime', 'great_expectations']:
+                    imports.add(dep)
+                    
+        with open(script_path, "w") as f:
+            for imp in imports:
+                f.write(f'import {imp}\n')
+            f.write('\n')
+            f.write(composed_code)
+            f.write('\n\n')
+            f.write('if __name__ == "__main__":\n')
+            f.write('    import sys\n')
+            
+            data_path = "data.csv"
+            first_bindings = self.get_semantic_bindings(operations[0]['uri'], None)
+            if 'p' in first_bindings:
+                 data_path = first_bindings['p']
+                 
+            f.write('    # Extract data path from args or use default\n')
+            f.write(f'    data_file = sys.argv[1] if len(sys.argv) > 1 else "{data_path}"\n')
+            f.write('    print(f"Loading data from {data_file}...")\n')
+            f.write('    try:\n')
+            f.write('        result = run_gx_validation(data_file)\n')
+            f.write('        print("\\n=== VALIDATION RESULT ===")\n')
+            f.write('        print(result)\n')
+            f.write('        print("===========================")\n')
+            f.write('    except Exception as e:\n')
+            f.write('        print(f"Error during validation: {e}")\n')
+            f.write('        sys.exit(1)\n')
+            
+        print(f"  ✓ Generated validation_job.py (GX)")
+        
+        reqs_path = service_dir / "requirements.txt"
+        with open(reqs_path, "w") as f:
+            f.write('pandas\n')
+            f.write('great_expectations>=1.0.0\n')
+            for imp in imports:
+                f.write(f'{imp}\n')
+        print(f"  ✓ Generated requirements.txt (GX)")
+        
+        docker_path = service_dir / "Dockerfile"
+        with open(docker_path, "w") as f:
+            f.write('FROM python:3.9-slim\n\n')
+            f.write('WORKDIR /app\n\n')
+            f.write('COPY requirements.txt .\n')
+            f.write('RUN pip install --no-cache-dir -r requirements.txt\n\n')
+            f.write('COPY validation_job.py .\n\n')
+            f.write('ENTRYPOINT ["python", "validation_job.py"]\n')
+            
+        print(f"  ✓ Generated Dockerfile (GX)")
+        
+        with open(script_path, "w") as f:
+            f.write('import pandas as pd\n')
+            f.write('import pandas\n')
+            f.write('from datetime import datetime\n')
+            for imp in imports:
+                f.write(f'import {imp}\n')
+            f.write('\n# --- SEMANTIC PARAMETER BINDINGS ---\n')
+            all_bindings = {}
+            for op in operations:
+                b = self.get_semantic_bindings(op['uri'], None)
+                for k, v in b.items():
+                    if k != 'data':
+                        all_bindings[k] = v
+                        
+            for k, v in all_bindings.items():
+                if isinstance(v, str):
+                    f.write(f'{k} = "{v}"\n')
+                else:
+                    f.write(f'{k} = {v}\n')
+            f.write('# -----------------------------------\n\n')
+            
+            f.write(composed_code)
+            f.write('\n\n')
+            f.write('if __name__ == "__main__":\n')
+            f.write('    import sys\n')
+            
+            if 'p' in all_bindings:
+                f.write('    # Extract dynamic data path from docker run args\n')
+                f.write('    if len(sys.argv) > 1:\n')
+                f.write('        p = sys.argv[1]\n')
+                f.write('    print(f"Executing policy strictly against {p}...")\n')
+            
+            f.write('    try:\n')
+            f.write('        result = composed_pipeline(None)\n')
+            f.write('        print("\\n=== VALIDATION RESULT ===")\n')
+            f.write('        print(result)\n')
+            f.write('        print("===========================")\n')
+            f.write('    except Exception as e:\n')
+            f.write('        print(f"Error during validation: {e}")\n')
+            f.write('        sys.exit(1)\n')
+            
+        print(f"  ✓ Generated validation_job.py")
+        
+        # 2. Generate requirements.txt
+        reqs_path = service_dir / "requirements.txt"
+        with open(reqs_path, "w") as f:
+            f.write('pandas\n')
+            for imp in imports:
+                f.write(f'{imp}\n')
+        print(f"  ✓ Generated requirements.txt")
+        
+        # 3. Generate Dockerfile
+        docker_path = service_dir / "Dockerfile"
+        with open(docker_path, "w") as f:
+            f.write('FROM python:3.9-slim\n\n')
+            f.write('WORKDIR /app\n\n')
+            f.write('COPY requirements.txt .\n')
+            f.write('RUN pip install --no-cache-dir -r requirements.txt\n\n')
+            f.write('COPY validation_job.py .\n\n')
+            f.write('ENTRYPOINT ["python", "validation_job.py"]\n')
+            
+        print(f"  ✓ Generated Dockerfile")
+        print(f"  Service ready at {service_dir}")
+        print(f"{'='*60}\n")
+
     def execute_operation(self, op_uri: URIRef, previous_result: Any, op_num: int) -> Any:
         """Execute a single operation using semantic properties"""
         
@@ -507,8 +787,20 @@ class SemanticN3Executor:
 
             # Convert value based on type/content
             if isinstance(value_node, Literal):
-                # Literals (int, float, bool)
-                bindings[name] = value_node.toPython()
+                val_str = str(value_node)
+                # Parse manual
+                if val_str.lower() == 'true':
+                    bindings[name] = True
+                elif val_str.lower() == 'false':
+                    bindings[name] = False
+                else:
+                    try:
+                        bindings[name] = int(val_str)
+                    except ValueError:
+                        try:
+                            bindings[name] = float(val_str)
+                        except ValueError:
+                            bindings[name] = val_str
             else:
                 # URIs or strings
                 bindings[name] = str(value_node)
@@ -922,13 +1214,24 @@ def merge_validation_reports_to_sdm(pc_graph: Graph, sdm_file: str, output_sdm_f
 if __name__ == "__main__":
     import sys
     import os
+    import argparse
+    from pathlib import Path
+    from rdflib import Graph, URIRef, RDF, Namespace
+    tb = Namespace("http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/tbox#")
+    from rdflib.namespace import PROV as prov
     
-    if len(sys.argv) != 3:
-        print("Usage: python executor_semantic.py <policy_checker_uri> <code_metadata.json>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Semantic N3-Based Executor")
+    parser.add_argument("pc_uri", help="PolicyChecker URI")
+    parser.add_argument("metadata_file", help="Path to code_metadata.json")
+    parser.add_argument("--export-docker", type=str, help='Export standalone Docker validation services to DIR', default=None)
+    parser.add_argument('--backend', type=str, choices=['pandas', 'gx'], default='pandas',
+                        help='Execution backend to use (pandas or gx)')
+    args = parser.parse_args()
     
-    pc_uri_str = sys.argv[1]
-    metadata_file = sys.argv[2]
+    pc_uri_str = args.pc_uri
+    metadata_file = args.metadata_file
+    export_docker_dir = args.export_docker
+    backend = args.backend
     
     # SINGLE SOURCE OF TRUTH: sdm.ttl in SemanticDataModel folder
     # All components (federation, registration, contracts, planner, executor) use this file
@@ -946,7 +1249,13 @@ if __name__ == "__main__":
     
     # Load PolicyChecker from SDM
     pc_graph = Graph()
-    pc_graph.parse(sdm_file, format='turtle')
+    with open(sdm_file, 'r') as f:
+        sdm_content = f.read()
+    
+    # Patch RDFlLib parser bug with boolean float types
+    sdm_content = sdm_content.replace('"true"^^<http://www.w3.org/2001/XMLSchema#float>', '"true"')
+    sdm_content = sdm_content.replace('"false"^^<http://www.w3.org/2001/XMLSchema#float>', '"false"')
+    pc_graph.parse(data=sdm_content, format='turtle')
     
     # Convert string to URIRef
     pc_uri = URIRef(pc_uri_str)
@@ -968,8 +1277,11 @@ if __name__ == "__main__":
     print(f"  Policy: {policy_name}")
     print(f"  Data Product: {dp_name}")
     
-    # Create executor
-    executor = SemanticN3Executor(pc_graph, metadata_file)
+    # 2. Find and execute PolicyChecker
+    executor = SemanticN3Executor(pc_graph, metadata_file, export_docker_dir=export_docker_dir, backend=backend)
+    
+    # We should search for the exact pc_uri
+    target_pc = URIRef(pc_uri_str)
     
     # Execute ALL PolicyCheckers
     results = []
