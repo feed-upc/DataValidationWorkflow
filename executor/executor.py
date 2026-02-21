@@ -406,7 +406,8 @@ class SemanticN3Executor:
         
         # Export docker service if configured
         if getattr(self, 'export_docker_dir', None) and pc_uri:
-            self._export_docker_service(pc_uri, composed_code, operations, previous_result)
+            print("  ⚠ Semantic Docker export is currently unsupported. Skipping standalone generation.")
+            # self._export_docker_service(pc_uri, composed_code, operations, previous_result)
         
         # Step 3: Execute composed function
         print("EXECUTING COMPOSED UDF...")
@@ -490,27 +491,37 @@ class SemanticN3Executor:
             if op['gx_type'] == 'load_data':
                 continue
                 
+            if op['gx_type'].startswith('constraint_'):
+                continue
+                
             b = op['bindings']
             kwargs = {}
             if 'attr' in b:
                 kwargs['column'] = b['attr']
-            if 'threshold' in b:
-                if 'operator' in b and b['operator'] == 'http://www.w3.org/ns/odrl/2/eq':
-                    if op['gx_type'] == 'expect_column_kl_divergence_to_be_less_than':
-                        # Simplistic conversion for Fairness to KL Divergence
-                        kwargs['threshold'] = b['threshold']
-                        kwargs['partition_object'] = {"values": ["M", "F"], "weights": [0.5, 0.5]}
-                    elif op['gx_type'] == 'expect_column_values_to_be_in_set':
-                        # Validity conversion
-                        kwargs['mostly'] = b['threshold'] / 100.0
-                    else:
-                        kwargs['mostly'] = b['threshold'] / 100.0
-                elif 'operator' in b and b['operator'] == 'http://www.w3.org/ns/odrl/2/lteq':
-                    kwargs['mostly'] = b['threshold'] / 100.0
-                    
+            elif 'ts_attr' in b:
+                kwargs['column'] = b['ts_attr']
+                
+            threshold = None
+            operator = None
+            if i + 1 < len(operations) and operations[i+1]['gx_type'].startswith('constraint_'):
+                next_op = operations[i+1]
+                next_b = next_op['bindings']
+                if 'threshold' in next_b:
+                    threshold = next_b['threshold']
+                if 'operator' in next_b:
+                    operator = str(next_b['operator'])
+
+            if threshold is not None:
+                if op['gx_type'] == 'expect_column_kl_divergence_to_be_less_than':
+                    kwargs['threshold'] = threshold / 100.0
+                    kwargs['partition_object'] = {"values": ["M", "F"], "weights": [0.5, 0.5]}
+                elif op['gx_type'] == 'expect_column_values_to_be_between':
+                    kwargs['min_value'] = 0
+                    kwargs['max_value'] = threshold
+                else:
+                    kwargs['mostly'] = threshold / 100.0
+            
             if op['gx_type'] == 'expect_column_values_to_not_be_null':
-                if 'threshold' in b:
-                    kwargs['mostly'] = b['threshold'] / 100.0
                 composed_code += f"    # Step {op['num']}: {op['type']}\n"
                 composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnValuesToNotBeNull(**{kwargs}))\n\n"
             
@@ -521,12 +532,18 @@ class SemanticN3Executor:
                 
             elif op['gx_type'] == 'expect_column_kl_divergence_to_be_less_than':
                 composed_code += f"    # Step {op['num']}: {op['type']}\n"
-                composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnKlDivergenceToBeLessThan(**{kwargs}))\n\n"
+                composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnKLDivergenceToBeLessThan(**{kwargs}))\n\n"
                 
-        composed_code += "    batch_request = context.data_sources.add_pandas('pandas_source').add_csv_asset('csv_asset', filepath_or_buffer=data_path).build_batch_request()\n"
-        composed_code += "    validation_results = context.run_validation_operator('action_list_operator', assets_to_validate=[batch_request], run_id='semantic_run')\n"
-        composed_code += "    # Ephemeral checkpoint wrapper\n"
-        composed_code += "    checkpoint = context.add_orchestrator_checkpoint('semantic_checkpoint', suite_name='semantic_suite', batch_request=batch_request)\n"
+            elif op['gx_type'] == 'expect_column_values_to_be_between':
+                composed_code += f"    # Step {op['num']}: {op['type']}\n"
+                composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnValuesToBeBetween(**{kwargs}))\n\n"
+                
+        composed_code += "    csv_asset = context.data_sources.add_pandas('pandas_source').add_csv_asset('csv_asset', filepath_or_buffer=data_path)\n"
+        composed_code += "    batch_def = csv_asset.add_batch_definition_whole_dataframe('dataframe_batch_def')\n"
+        composed_code += "    validation_definition = gx.ValidationDefinition(name='semantic_validation', data=batch_def, suite=suite)\n"
+        composed_code += "    context.validation_definitions.add(validation_definition)\n"
+        composed_code += "    checkpoint = gx.Checkpoint(name='semantic_checkpoint', validation_definitions=[validation_definition])\n"
+        composed_code += "    context.checkpoints.add(checkpoint)\n"
         composed_code += "    result = checkpoint.run()\n"
         composed_code += "    return result.success\n"
         
@@ -571,10 +588,11 @@ class SemanticN3Executor:
         
         script_path = service_dir / "validation_job.py"
         imports = set()
+        imports.add('great_expectations')
         for op in operations:
             deps = self.code_metadata.get_dependencies(op['impl'])
             for dep in deps:
-                if dep not in ['pandas', 'datetime', 'great_expectations']:
+                if dep not in ['pandas', 'datetime']:
                     imports.add(dep)
                     
         with open(script_path, "w") as f:
@@ -623,69 +641,6 @@ class SemanticN3Executor:
             f.write('ENTRYPOINT ["python", "validation_job.py"]\n')
             
         print(f"  ✓ Generated Dockerfile (GX)")
-        
-        with open(script_path, "w") as f:
-            f.write('import pandas as pd\n')
-            f.write('import pandas\n')
-            f.write('from datetime import datetime\n')
-            for imp in imports:
-                f.write(f'import {imp}\n')
-            f.write('\n# --- SEMANTIC PARAMETER BINDINGS ---\n')
-            all_bindings = {}
-            for op in operations:
-                b = self.get_semantic_bindings(op['uri'], None)
-                for k, v in b.items():
-                    if k != 'data':
-                        all_bindings[k] = v
-                        
-            for k, v in all_bindings.items():
-                if isinstance(v, str):
-                    f.write(f'{k} = "{v}"\n')
-                else:
-                    f.write(f'{k} = {v}\n')
-            f.write('# -----------------------------------\n\n')
-            
-            f.write(composed_code)
-            f.write('\n\n')
-            f.write('if __name__ == "__main__":\n')
-            f.write('    import sys\n')
-            
-            if 'p' in all_bindings:
-                f.write('    # Extract dynamic data path from docker run args\n')
-                f.write('    if len(sys.argv) > 1:\n')
-                f.write('        p = sys.argv[1]\n')
-                f.write('    print(f"Executing policy strictly against {p}...")\n')
-            
-            f.write('    try:\n')
-            f.write('        result = composed_pipeline(None)\n')
-            f.write('        print("\\n=== VALIDATION RESULT ===")\n')
-            f.write('        print(result)\n')
-            f.write('        print("===========================")\n')
-            f.write('    except Exception as e:\n')
-            f.write('        print(f"Error during validation: {e}")\n')
-            f.write('        sys.exit(1)\n')
-            
-        print(f"  ✓ Generated validation_job.py")
-        
-        # 2. Generate requirements.txt
-        reqs_path = service_dir / "requirements.txt"
-        with open(reqs_path, "w") as f:
-            f.write('pandas\n')
-            for imp in imports:
-                f.write(f'{imp}\n')
-        print(f"  ✓ Generated requirements.txt")
-        
-        # 3. Generate Dockerfile
-        docker_path = service_dir / "Dockerfile"
-        with open(docker_path, "w") as f:
-            f.write('FROM python:3.9-slim\n\n')
-            f.write('WORKDIR /app\n\n')
-            f.write('COPY requirements.txt .\n')
-            f.write('RUN pip install --no-cache-dir -r requirements.txt\n\n')
-            f.write('COPY validation_job.py .\n\n')
-            f.write('ENTRYPOINT ["python", "validation_job.py"]\n')
-            
-        print(f"  ✓ Generated Dockerfile")
         print(f"  Service ready at {service_dir}")
         print(f"{'='*60}\n")
 

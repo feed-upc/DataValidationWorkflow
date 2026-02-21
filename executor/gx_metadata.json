@@ -26,7 +26,7 @@
             ]
         },
         {
-            "@id": "ab:ImpQualityCompleteness",
+            "@id": "ab:ImpQualityMetric",
             "@type": "tb:Implementation",
             "rdfs:comment": "DQRP2 (DQR1EH): Completeness check",
             "tb:forOp": [
@@ -116,46 +116,6 @@
             ]
         },
         {
-            "@id": "ab:ImpCheckConsistency",
-            "@type": "tb:Implementation",
-            "tb:forOp": [
-                {
-                    "@id": "ab:CheckConsistency"
-                }
-            ],
-            "tb:forType": [
-                {
-                    "@id": "ab:Tabular"
-                }
-            ],
-            "tb:gxExpectationType": "expect_column_values_to_be_in_type_list",
-            "tb:dependsOn": [
-                {
-                    "tb:name": "great_expectations"
-                }
-            ]
-        },
-        {
-            "@id": "ab:ImpCheckValidity",
-            "@type": "tb:Implementation",
-            "tb:forOp": [
-                {
-                    "@id": "ab:CheckValidity"
-                }
-            ],
-            "tb:forType": [
-                {
-                    "@id": "ab:Tabular"
-                }
-            ],
-            "tb:gxExpectationType": "expect_column_values_to_match_regex",
-            "tb:dependsOn": [
-                {
-                    "tb:name": "great_expectations"
-                }
-            ]
-        },
-        {
             "@id": "ab:ImpConstraintLteq",
             "@type": "tb:Implementation",
             "tb:forOp": [
@@ -170,6 +130,23 @@
                 }
             ],
             "tb:gxExpectationType": "constraint_lteq",
+            "tb:dependsOn": []
+        },
+        {
+            "@id": "ab:ImpConstraintGteq",
+            "@type": "tb:Implementation",
+            "tb:forOp": [
+                {
+                    "@id": "odrl:Constraint"
+                }
+            ],
+            "tb:forOperator": "odrl:gteq",
+            "tb:forType": [
+                {
+                    "@id": "ab:Tabular"
+                }
+            ],
+            "tb:gxExpectationType": "constraint_gteq",
             "tb:dependsOn": []
         },
         {
