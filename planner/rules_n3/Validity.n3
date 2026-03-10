@@ -52,7 +52,7 @@
     # Operation 1: Quality Metric Calculation (Validity)
     # ROLE-ANNOTATED INPUTS: Each input has explicit role
     _:validityOp a tb:Operation ;
-                  tb:hasAbstract ab:qM_Validity ;
+                  tb:hasAbstract ab:CheckValidity ;
                   tb:hasInput [
                       tb:value ?targetAttr ;
                       tb:role "targetAttribute"

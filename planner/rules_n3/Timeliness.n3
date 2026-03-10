@@ -43,11 +43,12 @@
 
     ?policy tb:qualityDimension "Timeliness" .
 
-    # Resolve physical attribute via ConstraintPropagation rule (from odrl:target)
-    ?permission tb:physicalAttribute ?targetAttr .
-    
-    # We also need the timestamp attribute details for the CheckFreshness operation
-    # Since we know ?targetAttr IS the timestamp attribute (e.g. lastUpdated), we use it.
+    # Resolve physical timestamp attribute via the metric's dqv:computedOn property
+    # The metric (e.g. ab:DataAge) declares dqv:computedOn ab:insertionTime,
+    # and the SDM mapping resolves insertionTime to the physical column (lastUpdated).
+    ?metric dqv:computedOn ?semanticFeature .
+    ?mapping tb:mfrom ?targetAttr ;
+             tb:mto ?semanticFeature .
     ?targetAttr tb:attribute ?tsColName .
 }
 =>

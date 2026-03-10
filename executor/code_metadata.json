@@ -207,7 +207,7 @@
       "rdfs:comment": "DQRP2 (DQR1EH): Completeness check - calculates percentage of non-null values for an attribute",
       "tb:forOp": [
         {
-          "@id": "ab:qM"
+          "@id": "ab:CheckCompleteness"
         }
       ],
       "tb:forType": [
@@ -246,7 +246,7 @@
       "rdfs:comment": "DQRP3: Validity check - percentage of values adhering to ISO 3166 alpha-2",
       "tb:forOp": [
         {
-          "@id": "ab:qM_Validity"
+          "@id": "ab:CheckValidity"
         }
       ],
       "tb:forType": [
@@ -288,7 +288,7 @@
       "rdfs:comment": "DQRP6 (DQR5EH): Fairness check - calculates max percentage of any discrete group",
       "tb:forOp": [
         {
-          "@id": "ab:qM_Fairness"
+          "@id": "ab:CheckFairness"
         }
       ],
       "tb:forType": [
@@ -313,6 +313,78 @@
       "tb:hasCode": [
         {
           "tb:code": "data[attr].value_counts(normalize=True).max() * 100"
+        }
+      ],
+      "tb:dependsOn": [
+        {
+          "tb:name": "pandas"
+        }
+      ]
+    },
+    {
+      "@id": "ab:ImpQualityMetricRowCount",
+      "@type": "tb:Implementation",
+      "rdfs:comment": "DQRP5: Volume check - counts the number of rows in the dataset",
+      "tb:forOp": [
+        {
+          "@id": "ab:CheckVolume"
+        }
+      ],
+      "tb:forType": [
+        {
+          "@id": "ab:Tabular"
+        }
+      ],
+      "tb:hasParameters": [
+        {
+          "tb:name": "data",
+          "tb:role": "previousResult",
+          "tb:type": "DataFrame",
+          "tb:description": "Data to assess"
+        }
+      ],
+      "tb:hasCode": [
+        {
+          "tb:code": "len(data)"
+        }
+      ],
+      "tb:dependsOn": [
+        {
+          "tb:name": "pandas"
+        }
+      ]
+    },
+    {
+      "@id": "ab:ImpQualityMetricConsistency",
+      "@type": "tb:Implementation",
+      "rdfs:comment": "DQRP4: Consistency check - if gender is M, pregnancyHistory must be NULL",
+      "tb:forOp": [
+        {
+          "@id": "ab:CheckConsistency"
+        }
+      ],
+      "tb:forType": [
+        {
+          "@id": "ab:Tabular"
+        }
+      ],
+      "tb:hasParameters": [
+        {
+          "tb:name": "data",
+          "tb:role": "previousResult",
+          "tb:type": "DataFrame",
+          "tb:description": "Data to assess"
+        },
+        {
+          "tb:name": "attr",
+          "tb:role": "attributeReference",
+          "tb:type": "string",
+          "tb:description": "Column to check for consistency (e.g., pregnancyHistory)"
+        }
+      ],
+      "tb:hasCode": [
+        {
+          "tb:code": "(data.loc[data['gender'].isin(['M', 'male']), attr].isna().sum() / max(data['gender'].isin(['M', 'male']).sum(), 1)) * 100"
         }
       ],
       "tb:dependsOn": [

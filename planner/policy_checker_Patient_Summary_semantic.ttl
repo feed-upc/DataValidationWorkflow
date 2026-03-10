@@ -3,179 +3,263 @@
 @prefix tbox: <http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/tbox#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
-abox:genid-180d5c74b488 a tbox:PolicyChecker ;
-    tbox:accordingTo abox:DQRP2 ;
-    tbox:nextStep abox:genid-daf95d12f159 ;
+abox:genid-2aeb3d62bec4 a tbox:PolicyChecker ;
+    tbox:accordingTo abox:DQR6Rule ;
+    tbox:nextStep abox:genid-31fcf896cd04 ;
     tbox:validates abox:Patient_Summary .
 
-abox:genid-4c28500832e0 a tbox:PolicyChecker ;
-    tbox:accordingTo abox:DQRP3 ;
-    tbox:nextStep abox:genid-998255fc8169 ;
+abox:genid-62e400fec939 a tbox:PolicyChecker ;
+    tbox:accordingTo abox:DQR3Rule ;
+    tbox:nextStep abox:genid-63fe1535e07d ;
     tbox:validates abox:Patient_Summary .
 
-abox:genid-7e238d383816 a tbox:PolicyChecker ;
-    tbox:accordingTo abox:DQRP1 ;
-    tbox:nextStep abox:genid-9c022837549f ;
+abox:genid-b813b926be50 a tbox:PolicyChecker ;
+    tbox:accordingTo abox:DQR2Rule ;
+    tbox:nextStep abox:genid-49e3b2d01e2c ;
     tbox:validates abox:Patient_Summary .
 
-abox:genid-ed93bdcca4a4 a tbox:PolicyChecker ;
-    tbox:accordingTo abox:DQRP6 ;
-    tbox:nextStep abox:genid-aa744afca770 ;
+abox:genid-dbcd80a40031 a tbox:PolicyChecker ;
+    tbox:accordingTo abox:DQR1Rule ;
+    tbox:nextStep abox:genid-c48703ad767a ;
     tbox:validates abox:Patient_Summary .
 
-abox:genid-01acde6dcf67 tbox:role "threshold" ;
-    tbox:value 100 .
+abox:genid-ec9be147fb21 a tbox:PolicyChecker ;
+    tbox:accordingTo abox:DQR4Rule ;
+    tbox:nextStep abox:genid-584201aeee9e ;
+    tbox:validates abox:Patient_Summary .
 
-abox:genid-06825cff04c1 tbox:role "threshold" ;
+abox:genid-f8a5b0405383 a tbox:PolicyChecker ;
+    tbox:accordingTo abox:DQR5Rule ;
+    tbox:nextStep abox:genid-68ea36d29fd3 ;
+    tbox:validates abox:Patient_Summary .
+
+abox:genid-047229a80a9f a tbox:Operation ;
+    tbox:hasAbstract odrl:Constraint ;
+    tbox:hasInput abox:genid-06dbfc16a73a,
+        abox:genid-c7d52a56985e,
+        abox:genid-d5b59858b8b7 ;
+    tbox:hasOutput abox:boolean ;
+    tbox:isTerminal true .
+
+abox:genid-06dbfc16a73a tbox:role "threshold" ;
+    tbox:value 2000 .
+
+abox:genid-10695b21bd70 a tbox:Operation ;
+    tbox:hasAbstract abox:CheckVolume ;
+    tbox:hasInput abox:genid-d487806dc2d6 ;
+    tbox:hasOutput abox:score ;
+    tbox:nextStep abox:genid-047229a80a9f .
+
+abox:genid-1eb4cbffb9f1 tbox:role "threshold" ;
     tbox:value 30 .
 
-abox:genid-135962af5db8 tbox:role "previousResult" ;
-    tbox:value abox:data .
-
-abox:genid-174dfa60d43f tbox:role "operator" ;
-    tbox:value abox:genid-7c964c1a635e .
-
-abox:genid-20f8cec53c85 tbox:role "operator" ;
-    tbox:value odrl:eq .
-
-abox:genid-2618a6a45b0a a tbox:Operation ;
+abox:genid-20647e35c233 a tbox:Operation ;
     tbox:hasAbstract odrl:Constraint ;
-    tbox:hasInput abox:genid-01acde6dcf67,
-        abox:genid-af625d3ef596,
-        abox:genid-b99cd4ca67a6 ;
+    tbox:hasInput abox:genid-20b78b9f4c2e,
+        abox:genid-bf025b64b0d2,
+        abox:genid-f45b530e5ab9 ;
     tbox:hasOutput abox:boolean ;
     tbox:isTerminal true .
 
-abox:genid-413354176b33 tbox:role "previousResult" ;
-    tbox:value abox:data .
-
-abox:genid-4a62dc30e4f1 a tbox:Operation ;
-    tbox:hasAbstract odrl:Constraint ;
-    tbox:hasInput abox:genid-413354176b33,
-        abox:genid-5db35409fc22,
-        abox:genid-92bb940cc7f7 ;
-    tbox:hasOutput abox:boolean ;
-    tbox:isTerminal true .
-
-abox:genid-58cf7f2f3d29 tbox:role "targetAttribute" ;
-    tbox:value abox:local_patient_id .
-
-abox:genid-5db35409fc22 tbox:role "threshold" ;
-    tbox:value 100 .
-
-abox:genid-7265f3300067 tbox:role "filePath" ;
-    tbox:value "/home/acraf/psr/Fdatavalidation-1/DataProductLayer/DataProduct_EHDS_AMR/Data/Patient_Summary.csv" .
-
-abox:genid-75102def1e50 a tbox:Operation ;
-    tbox:hasAbstract abox:qM_Validity ;
-    tbox:hasInput abox:genid-c8e9b0a2c2c2,
-        abox:genid-e1ba9e118a69 ;
-    tbox:hasOutput abox:score ;
-    tbox:nextStep abox:genid-2618a6a45b0a .
-
-abox:genid-7c0fd58f3d2c tbox:role "previousResult" ;
-    tbox:value abox:data .
-
-abox:genid-893d3fd80c12 tbox:role "threshold" ;
+abox:genid-20b78b9f4c2e tbox:role "threshold" ;
     tbox:value 50 .
 
-abox:genid-92bb940cc7f7 tbox:role "operator" ;
-    tbox:value odrl:eq .
+abox:genid-2b947d6e4369 tbox:role "previousResult" ;
+    tbox:value abox:data .
 
-abox:genid-96213dcd1edc a tbox:Operation ;
-    tbox:hasAbstract abox:CheckFreshness ;
-    tbox:hasInput abox:genid-7c0fd58f3d2c,
-        abox:genid-a6fe9bf29cf9 ;
-    tbox:hasOutput abox:data ;
-    tbox:nextStep abox:genid-b92a177076c3 .
-
-abox:genid-998255fc8169 a tbox:Operation ;
-    tbox:hasAbstract abox:LoadData ;
-    tbox:hasInput abox:genid-bc4c3a765f82 ;
-    tbox:hasOutput abox:data ;
-    tbox:nextStep abox:genid-75102def1e50 .
-
-abox:genid-9c022837549f a tbox:Operation ;
-    tbox:hasAbstract abox:LoadData ;
-    tbox:hasInput abox:genid-7265f3300067 ;
-    tbox:hasOutput abox:data ;
-    tbox:nextStep abox:genid-96213dcd1edc .
-
-abox:genid-a6fe9bf29cf9 tbox:role "timestampAttribute" ;
-    tbox:value abox:lastUpdated .
-
-abox:genid-a74bce0a94a4 a tbox:Operation ;
-    tbox:hasAbstract abox:qM_Fairness ;
-    tbox:hasInput abox:genid-135962af5db8,
-        abox:genid-ea9ba92068d7 ;
+abox:genid-2c14621f6f9b a tbox:Operation ;
+    tbox:hasAbstract abox:CheckCompleteness ;
+    tbox:hasInput abox:genid-600e182aa796,
+        abox:genid-e300f3ec3756 ;
     tbox:hasOutput abox:score ;
-    tbox:nextStep abox:genid-cf4e1e3036dc .
+    tbox:nextStep abox:genid-b081201db026 .
 
-abox:genid-aa744afca770 a tbox:Operation ;
+abox:genid-2de5be8f6095 tbox:role "filePath" ;
+    tbox:value "/home/acraf/psr/Fdatavalidation-1/DataProductLayer/DataProduct_EHDS_AMR/Data/Patient_Summary.csv" .
+
+abox:genid-31fcf896cd04 a tbox:Operation ;
     tbox:hasAbstract abox:LoadData ;
-    tbox:hasInput abox:genid-e4cd7de1ca81 ;
+    tbox:hasInput abox:genid-f76347329544 ;
     tbox:hasOutput abox:data ;
-    tbox:nextStep abox:genid-a74bce0a94a4 .
+    tbox:nextStep abox:genid-4904638095b2 .
 
-abox:genid-af625d3ef596 tbox:role "operator" ;
+abox:genid-384770d06952 tbox:role "operator" ;
     tbox:value odrl:eq .
 
-abox:genid-b7684b7f662b tbox:role "previousResult" ;
-    tbox:value abox:data .
+abox:genid-41d3a2aee3f5 tbox:role "targetAttribute" ;
+    tbox:value abox:gender .
 
-abox:genid-b8ed6bdde6ab tbox:role "previousResult" ;
-    tbox:value abox:data .
-
-abox:genid-b92a177076c3 a tbox:Operation ;
-    tbox:hasAbstract odrl:Constraint ;
-    tbox:hasInput abox:genid-06825cff04c1,
-        abox:genid-174dfa60d43f,
-        abox:genid-b7684b7f662b ;
+abox:genid-41e54ea5d599 a tbox:Operation ;
+    tbox:hasAbstract abox:CheckFreshness ;
+    tbox:hasInput abox:genid-8dd21e6c57de,
+        abox:genid-90cfa1f41b9b ;
     tbox:hasOutput abox:data ;
-    tbox:isTerminal true .
+    tbox:nextStep abox:genid-bcea1335f206 .
 
-abox:genid-b99cd4ca67a6 tbox:role "previousResult" ;
+abox:genid-4904638095b2 a tbox:Operation ;
+    tbox:hasAbstract abox:CheckFairness ;
+    tbox:hasInput abox:genid-41d3a2aee3f5,
+        abox:genid-fde3abe8c54f ;
+    tbox:hasOutput abox:score ;
+    tbox:nextStep abox:genid-20647e35c233 .
+
+abox:genid-49e3b2d01e2c a tbox:Operation ;
+    tbox:hasAbstract abox:LoadData ;
+    tbox:hasInput abox:genid-cc0dbe8513fa ;
+    tbox:hasOutput abox:data ;
+    tbox:nextStep abox:genid-2c14621f6f9b .
+
+abox:genid-4d73c244ea12 tbox:role "operator" ;
+    tbox:value odrl:eq .
+
+abox:genid-4f923b196c4c tbox:role "previousResult" ;
     tbox:value abox:data .
 
-abox:genid-bc4c3a765f82 tbox:role "filePath" ;
-    tbox:value "/home/acraf/psr/Fdatavalidation-1/DataProductLayer/DataProduct_EHDS_AMR/Data/Patient_Summary.csv" .
+abox:genid-584201aeee9e a tbox:Operation ;
+    tbox:hasAbstract abox:LoadData ;
+    tbox:hasInput abox:genid-2de5be8f6095 ;
+    tbox:hasOutput abox:data ;
+    tbox:nextStep abox:genid-b1365cd5c6c0 .
 
-abox:genid-c36e56be27f3 tbox:role "filePath" ;
-    tbox:value "/home/acraf/psr/Fdatavalidation-1/DataProductLayer/DataProduct_EHDS_AMR/Data/Patient_Summary.csv" .
+abox:genid-600e182aa796 tbox:role "targetAttribute" ;
+    tbox:value abox:local_patient_id .
 
-abox:genid-c8e9b0a2c2c2 tbox:role "previousResult" ;
-    tbox:value abox:data .
+abox:genid-63fe1535e07d a tbox:Operation ;
+    tbox:hasAbstract abox:LoadData ;
+    tbox:hasInput abox:genid-ab886e455804 ;
+    tbox:hasOutput abox:data ;
+    tbox:nextStep abox:genid-92d451104750 .
 
-abox:genid-c9bb0fc02495 tbox:role "previousResult" ;
-    tbox:value abox:data .
+abox:genid-68ea36d29fd3 a tbox:Operation ;
+    tbox:hasAbstract abox:LoadData ;
+    tbox:hasInput abox:genid-f6c6530e24af ;
+    tbox:hasOutput abox:data ;
+    tbox:nextStep abox:genid-10695b21bd70 .
 
-abox:genid-cf4e1e3036dc a tbox:Operation ;
+abox:genid-700f5b08ae58 a tbox:Operation ;
     tbox:hasAbstract odrl:Constraint ;
-    tbox:hasInput abox:genid-20f8cec53c85,
-        abox:genid-893d3fd80c12,
-        abox:genid-c9bb0fc02495 ;
+    tbox:hasInput abox:genid-2b947d6e4369,
+        abox:genid-384770d06952,
+        abox:genid-73a7e51046a9 ;
     tbox:hasOutput abox:boolean ;
     tbox:isTerminal true .
 
-abox:genid-daf95d12f159 a tbox:Operation ;
-    tbox:hasAbstract abox:LoadData ;
-    tbox:hasInput abox:genid-c36e56be27f3 ;
-    tbox:hasOutput abox:data ;
-    tbox:nextStep abox:genid-fad33ee20c63 .
+abox:genid-73a7e51046a9 tbox:role "threshold" ;
+    tbox:value 100 .
 
-abox:genid-e1ba9e118a69 tbox:role "targetAttribute" ;
-    tbox:value abox:countryOfAffiliation .
+abox:genid-8cf71c5337d2 tbox:role "previousResult" ;
+    tbox:value abox:data .
 
-abox:genid-e4cd7de1ca81 tbox:role "filePath" ;
+abox:genid-8dd21e6c57de tbox:role "previousResult" ;
+    tbox:value abox:data .
+
+abox:genid-8ed060968021 tbox:role "threshold" ;
+    tbox:value 100 .
+
+abox:genid-90cfa1f41b9b tbox:role "timestampAttribute" ;
+    tbox:value abox:lastUpdated .
+
+abox:genid-92d451104750 a tbox:Operation ;
+    tbox:hasAbstract abox:CheckValidity ;
+    tbox:hasInput abox:genid-c04d7a2d6df6,
+        abox:genid-ec6ce3f54200 ;
+    tbox:hasOutput abox:score ;
+    tbox:nextStep abox:genid-700f5b08ae58 .
+
+abox:genid-9c42fd698481 tbox:role "previousResult" ;
+    tbox:value abox:data .
+
+abox:genid-a7006fb5d63a a tbox:Operation ;
+    tbox:hasAbstract odrl:Constraint ;
+    tbox:hasInput abox:genid-4d73c244ea12,
+        abox:genid-8cf71c5337d2,
+        abox:genid-c3c8115c0722 ;
+    tbox:hasOutput abox:boolean ;
+    tbox:isTerminal true .
+
+abox:genid-ab886e455804 tbox:role "filePath" ;
     tbox:value "/home/acraf/psr/Fdatavalidation-1/DataProductLayer/DataProduct_EHDS_AMR/Data/Patient_Summary.csv" .
 
-abox:genid-ea9ba92068d7 tbox:role "targetAttribute" ;
-    tbox:value abox:gender .
+abox:genid-b081201db026 a tbox:Operation ;
+    tbox:hasAbstract odrl:Constraint ;
+    tbox:hasInput abox:genid-8ed060968021,
+        abox:genid-9c42fd698481,
+        abox:genid-f60f83211007 ;
+    tbox:hasOutput abox:boolean ;
+    tbox:isTerminal true .
 
-abox:genid-fad33ee20c63 a tbox:Operation ;
-    tbox:hasAbstract abox:qM ;
-    tbox:hasInput abox:genid-58cf7f2f3d29,
-        abox:genid-b8ed6bdde6ab ;
+abox:genid-b1365cd5c6c0 a tbox:Operation ;
+    tbox:hasAbstract abox:CheckConsistency ;
+    tbox:hasInput abox:genid-4f923b196c4c,
+        abox:genid-ff925f1c4c9b ;
     tbox:hasOutput abox:score ;
-    tbox:nextStep abox:genid-4a62dc30e4f1 .
+    tbox:nextStep abox:genid-a7006fb5d63a .
+
+abox:genid-bcea1335f206 a tbox:Operation ;
+    tbox:hasAbstract odrl:Constraint ;
+    tbox:hasInput abox:genid-1eb4cbffb9f1,
+        abox:genid-c48959a013df,
+        abox:genid-d28abf8d8e46 ;
+    tbox:hasOutput abox:data ;
+    tbox:isTerminal true .
+
+abox:genid-bf025b64b0d2 tbox:role "operator" ;
+    tbox:value odrl:eq .
+
+abox:genid-c04d7a2d6df6 tbox:role "previousResult" ;
+    tbox:value abox:data .
+
+abox:genid-c3c8115c0722 tbox:role "threshold" ;
+    tbox:value 100 .
+
+abox:genid-c48703ad767a a tbox:Operation ;
+    tbox:hasAbstract abox:LoadData ;
+    tbox:hasInput abox:genid-e9e05d32ce89 ;
+    tbox:hasOutput abox:data ;
+    tbox:nextStep abox:genid-41e54ea5d599 .
+
+abox:genid-c48959a013df tbox:role "operator" ;
+    tbox:value abox:genid-afdf1c0d14e5 .
+
+abox:genid-c7d52a56985e tbox:role "operator" ;
+    tbox:value odrl:gteq .
+
+abox:genid-cc0dbe8513fa tbox:role "filePath" ;
+    tbox:value "/home/acraf/psr/Fdatavalidation-1/DataProductLayer/DataProduct_EHDS_AMR/Data/Patient_Summary.csv" .
+
+abox:genid-d28abf8d8e46 tbox:role "previousResult" ;
+    tbox:value abox:data .
+
+abox:genid-d487806dc2d6 tbox:role "previousResult" ;
+    tbox:value abox:data .
+
+abox:genid-d5b59858b8b7 tbox:role "previousResult" ;
+    tbox:value abox:data .
+
+abox:genid-e300f3ec3756 tbox:role "previousResult" ;
+    tbox:value abox:data .
+
+abox:genid-e9e05d32ce89 tbox:role "filePath" ;
+    tbox:value "/home/acraf/psr/Fdatavalidation-1/DataProductLayer/DataProduct_EHDS_AMR/Data/Patient_Summary.csv" .
+
+abox:genid-ec6ce3f54200 tbox:role "targetAttribute" ;
+    tbox:value abox:countryOfAffiliation .
+
+abox:genid-f45b530e5ab9 tbox:role "previousResult" ;
+    tbox:value abox:data .
+
+abox:genid-f60f83211007 tbox:role "operator" ;
+    tbox:value odrl:eq .
+
+abox:genid-f6c6530e24af tbox:role "filePath" ;
+    tbox:value "/home/acraf/psr/Fdatavalidation-1/DataProductLayer/DataProduct_EHDS_AMR/Data/Patient_Summary.csv" .
+
+abox:genid-f76347329544 tbox:role "filePath" ;
+    tbox:value "/home/acraf/psr/Fdatavalidation-1/DataProductLayer/DataProduct_EHDS_AMR/Data/Patient_Summary.csv" .
+
+abox:genid-fde3abe8c54f tbox:role "previousResult" ;
+    tbox:value abox:data .
+
+abox:genid-ff925f1c4c9b tbox:role "targetAttribute" ;
+    tbox:value abox:pregnancyHistory .
 

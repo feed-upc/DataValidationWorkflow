@@ -25,6 +25,7 @@ import tempfile
 import os
 import shutil
 import numpy as np
+import re
 from typing import Any, Dict, Optional, Tuple
 from rdflib import Graph, Namespace, URIRef, Literal, RDF, BNode, XSD
 
@@ -190,8 +191,8 @@ class SemanticN3Executor:
             try:
                 # Patch EYE reasoned output where non-floats get tagged as floats (e.g. "true"^^xsd:float)
                 # rdflib strict parser fails on this, so we strip the explicit datatype cast.
-                safe_stdout = result.stdout.replace('"true"^^<http://www.w3.org/2001/XMLSchema#float>', '"true"')
-                safe_stdout = safe_stdout.replace('"false"^^<http://www.w3.org/2001/XMLSchema#float>', '"false"')
+                safe_stdout = re.sub(r'(?i)"(true|false)"\^\^(?:<http://www.w3.org/2001/XMLSchema#float>|xsd:float|xsd:double|<http://www.w3.org/2001/XMLSchema#double>)', r'"\1"', result.stdout)
+                
                 
                 result_graph.parse(data=safe_stdout, format='n3')
                 # print(f"✓ Generated {len(result_graph)} triples from reasoning")
@@ -487,6 +488,10 @@ class SemanticN3Executor:
         composed_code += "    context = gx.get_context(mode='ephemeral')\n"
         composed_code += "    suite = context.suites.add(gx.ExpectationSuite(name='semantic_suite'))\n\n"
         
+        needs_dataframe_source = False
+        freshness_ts_col = None
+        freshness_age_col = None
+        
         for i, op in enumerate(operations):
             if op['gx_type'] == 'load_data':
                 continue
@@ -518,6 +523,16 @@ class SemanticN3Executor:
                 elif op['gx_type'] == 'expect_column_values_to_be_between':
                     kwargs['min_value'] = 0
                     kwargs['max_value'] = threshold
+                elif op['gx_type'] == 'expect_table_row_count_to_be_between':
+                    if operator == 'http://www.w3.org/ns/odrl/2/gteq':
+                        kwargs['min_value'] = threshold
+                        kwargs['max_value'] = None
+                    elif operator == 'http://www.w3.org/ns/odrl/2/lteq':
+                        kwargs['min_value'] = 0
+                        kwargs['max_value'] = threshold
+                    else:
+                        kwargs['min_value'] = threshold
+                        kwargs['max_value'] = threshold
                 else:
                     kwargs['mostly'] = threshold / 100.0
             
@@ -535,16 +550,51 @@ class SemanticN3Executor:
                 composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnKLDivergenceToBeLessThan(**{kwargs}))\n\n"
                 
             elif op['gx_type'] == 'expect_column_values_to_be_between':
+                # Freshness check: need to compute age in minutes from datetime column
+                ts_col = kwargs.get('column', 'lastUpdated')
+                age_col = f"{ts_col}_age_minutes"
+                needs_dataframe_source = True
+                freshness_ts_col = ts_col
+                freshness_age_col = age_col
                 composed_code += f"    # Step {op['num']}: {op['type']}\n"
-                composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnValuesToBeBetween(**{kwargs}))\n\n"
+                composed_code += f"    # Pre-compute data age in minutes from datetime column\n"
+                age_kwargs = dict(kwargs)
+                age_kwargs['column'] = age_col
+                composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnValuesToBeBetween(**{age_kwargs}))\n\n"
                 
-        composed_code += "    csv_asset = context.data_sources.add_pandas('pandas_source').add_csv_asset('csv_asset', filepath_or_buffer=data_path)\n"
-        composed_code += "    batch_def = csv_asset.add_batch_definition_whole_dataframe('dataframe_batch_def')\n"
-        composed_code += "    validation_definition = gx.ValidationDefinition(name='semantic_validation', data=batch_def, suite=suite)\n"
-        composed_code += "    context.validation_definitions.add(validation_definition)\n"
-        composed_code += "    checkpoint = gx.Checkpoint(name='semantic_checkpoint', validation_definitions=[validation_definition])\n"
-        composed_code += "    context.checkpoints.add(checkpoint)\n"
-        composed_code += "    result = checkpoint.run()\n"
+            elif op['gx_type'] == 'expect_table_row_count_to_be_between':
+                composed_code += f"    # Step {op['num']}: {op['type']}\n"
+                composed_code += f"    suite.add_expectation(gx.expectations.ExpectTableRowCountToBeBetween(**{kwargs}))\n\n"
+                
+            elif op['gx_type'] == 'expect_column_values_to_be_null':
+                kwargs['row_condition'] = 'gender == "M" or gender == "male"'
+                kwargs['condition_parser'] = 'pandas'
+                if 'mostly' in kwargs:
+                    del kwargs['mostly']
+                composed_code += f"    # Step {op['num']}: {op['type']}\n"
+                composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnValuesToBeNull(**{kwargs}))\n\n"
+
+                
+        if needs_dataframe_source:
+            # Freshness: load CSV, compute age column, then use DataFrame-based asset
+            composed_code += f"    _df = pd.read_csv(data_path)\n"
+            composed_code += f"    _df['{freshness_age_col}'] = (pd.Timestamp.now() - pd.to_datetime(_df['{freshness_ts_col}'])).dt.total_seconds() / 60.0\n"
+            composed_code += "    ds = context.data_sources.add_pandas('pandas_source')\n"
+            composed_code += "    da = ds.add_dataframe_asset(name='df_asset')\n"
+            composed_code += "    batch_def = da.add_batch_definition_whole_dataframe('dataframe_batch_def')\n"
+            composed_code += "    validation_definition = gx.ValidationDefinition(name='semantic_validation', data=batch_def, suite=suite)\n"
+            composed_code += "    context.validation_definitions.add(validation_definition)\n"
+            composed_code += "    checkpoint = gx.Checkpoint(name='semantic_checkpoint', validation_definitions=[validation_definition])\n"
+            composed_code += "    context.checkpoints.add(checkpoint)\n"
+            composed_code += "    result = checkpoint.run(batch_parameters={'dataframe': _df})\n"
+        else:
+            composed_code += "    csv_asset = context.data_sources.add_pandas('pandas_source').add_csv_asset('csv_asset', filepath_or_buffer=data_path)\n"
+            composed_code += "    batch_def = csv_asset.add_batch_definition_whole_dataframe('dataframe_batch_def')\n"
+            composed_code += "    validation_definition = gx.ValidationDefinition(name='semantic_validation', data=batch_def, suite=suite)\n"
+            composed_code += "    context.validation_definitions.add(validation_definition)\n"
+            composed_code += "    checkpoint = gx.Checkpoint(name='semantic_checkpoint', validation_definitions=[validation_definition])\n"
+            composed_code += "    context.checkpoints.add(checkpoint)\n"
+            composed_code += "    result = checkpoint.run()\n"
         composed_code += "    return result.success\n"
         
         print(composed_code)
@@ -790,7 +840,11 @@ class SemanticN3Executor:
         type_to_impl = {
             str(abox.LoadData): str(abox.Imp1),
             str(abox.CheckFreshness): str(abox.ImpCheckFreshness),
-            str(abox.qM): str(abox.ImpQualityMetric),
+            str(abox.CheckCompleteness): str(abox.ImpQualityMetric),
+            str(abox.CheckValidity): str(abox.ImpQualityMetricValidity),
+            str(abox.CheckFairness): str(abox.ImpQualityMetricFairness),
+            str(abox.CheckVolume): str(abox.ImpQualityMetricRowCount),
+            str(abox.CheckConsistency): str(abox.ImpQualityMetricConsistency),
             str(odrl.Constraint): str(abox.ImpConstraintLteq),
             str(dqv.completeness): str(abox.ImpQualityCompleteness),
             str(abox.CheckValidity): str(abox.ImpCheckValidity),
@@ -1208,8 +1262,7 @@ if __name__ == "__main__":
         sdm_content = f.read()
     
     # Patch RDFlLib parser bug with boolean float types
-    sdm_content = sdm_content.replace('"true"^^<http://www.w3.org/2001/XMLSchema#float>', '"true"')
-    sdm_content = sdm_content.replace('"false"^^<http://www.w3.org/2001/XMLSchema#float>', '"false"')
+    sdm_content = re.sub(r'(?i)"(true|false)"\^\^(?:<http://www.w3.org/2001/XMLSchema#float>|xsd:float|xsd:double|<http://www.w3.org/2001/XMLSchema#double>)', r'"\1"', sdm_content)
     pc_graph.parse(data=sdm_content, format='turtle')
     
     # Convert string to URIRef

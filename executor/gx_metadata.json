@@ -31,7 +31,7 @@
             "rdfs:comment": "DQRP2 (DQR1EH): Completeness check",
             "tb:forOp": [
                 {
-                    "@id": "ab:qM"
+                    "@id": "ab:CheckCompleteness"
                 }
             ],
             "tb:forType": [
@@ -52,7 +52,7 @@
             "rdfs:comment": "DQRP3: Validity check - percentage of values adhering to ISO 3166 alpha-2",
             "tb:forOp": [
                 {
-                    "@id": "ab:qM_Validity"
+                    "@id": "ab:CheckValidity"
                 }
             ],
             "tb:forType": [
@@ -76,7 +76,7 @@
             "rdfs:comment": "DQRP6 (DQR5EH): Fairness check - 50/50 balance",
             "tb:forOp": [
                 {
-                    "@id": "ab:qM_Fairness"
+                    "@id": "ab:CheckFairness"
                 }
             ],
             "tb:forType": [
@@ -85,6 +85,27 @@
                 }
             ],
             "tb:gxExpectationType": "expect_column_kl_divergence_to_be_less_than",
+            "tb:dependsOn": [
+                {
+                    "tb:name": "great_expectations"
+                }
+            ]
+        },
+        {
+            "@id": "ab:ImpQualityMetricConsistency",
+            "@type": "tb:Implementation",
+            "rdfs:comment": "DQRP4: Consistency check - conditional column null validation",
+            "tb:forOp": [
+                {
+                    "@id": "ab:CheckConsistency"
+                }
+            ],
+            "tb:forType": [
+                {
+                    "@id": "ab:Tabular"
+                }
+            ],
+            "tb:gxExpectationType": "expect_column_values_to_be_null",
             "tb:dependsOn": [
                 {
                     "tb:name": "great_expectations"
@@ -165,6 +186,27 @@
             ],
             "tb:gxExpectationType": "constraint_eq",
             "tb:dependsOn": []
+        },
+        {
+            "@id": "ab:ImpQualityMetricRowCount",
+            "@type": "tb:Implementation",
+            "rdfs:comment": "DQRP5: Volume check - minimum number of instances",
+            "tb:forOp": [
+                {
+                    "@id": "ab:CheckVolume"
+                }
+            ],
+            "tb:forType": [
+                {
+                    "@id": "ab:Tabular"
+                }
+            ],
+            "tb:gxExpectationType": "expect_table_row_count_to_be_between",
+            "tb:dependsOn": [
+                {
+                    "tb:name": "great_expectations"
+                }
+            ]
         }
     ]
 }

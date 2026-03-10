@@ -23,6 +23,7 @@ from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional, Tuple, List, Dict
 import logging
+import re
 
 from rdflib import Graph, Namespace, URIRef, Literal, RDF, RDFS, BNode
 
@@ -179,7 +180,9 @@ class EYEReasoner:
             
             # Parse results
             result_graph = Graph()
-            result_graph.parse(data=result.stdout, format='n3')
+            # Patch EYE reasoned output where non-floats get tagged as floats (e.g. "true"^^xsd:float)
+            safe_stdout = re.sub(r'(?i)"(true|false)"\^\^(?:<http://www.w3.org/2001/XMLSchema#float>|xsd:float|xsd:double|<http://www.w3.org/2001/XMLSchema#double>)', r'"\1"', result.stdout)
+            result_graph.parse(data=safe_stdout, format='n3')
             
             self.logger.info(f"EYE output {len(result_graph)} total triples")
             

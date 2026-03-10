@@ -190,7 +190,7 @@
 # ==============================================================================
 
 {
-  ?op tb:hasAbstract ab:qM .
+  ?op tb:hasAbstract ab:CheckCompleteness .
 }
 =>
 {
@@ -202,7 +202,7 @@
 # ==============================================================================
 
 {
-  ?op tb:hasAbstract ab:qM_Validity .
+  ?op tb:hasAbstract ab:CheckValidity .
 }
 =>
 {
@@ -214,9 +214,21 @@
 # ==============================================================================
 
 {
-  ?op tb:hasAbstract ab:qM_Fairness .
+  ?op tb:hasAbstract ab:CheckFairness .
 }
 =>
 {
   ?op tb:hasImplementation ab:ImpQualityMetricFairness .
+} .
+
+# ==============================================================================
+# RULE 11: Bind consistency metric implementation
+# ==============================================================================
+
+{
+  ?op tb:hasAbstract ab:CheckConsistency .
+}
+=>
+{
+  ?op tb:hasImplementation ab:ImpQualityMetricConsistency .
 } .

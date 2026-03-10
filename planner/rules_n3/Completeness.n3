@@ -40,8 +40,8 @@
                 odrl:operator ?operator ;
                 odrl:rightOperand ?threshold .
     
-    # The Metric should be an instance of ab:qM (Completeness Metric)
-    # ?metric dqv:isMeasurementOf ab:qM .
+    # The Metric should be an instance of ab:CheckCompleteness (Completeness Metric)
+    # ?metric dqv:isMeasurementOf ab:CheckCompleteness .
 
     # Ensure it is Completeness
     ?policy tb:qualityDimension "Completeness" .
@@ -55,7 +55,7 @@
     # Operation 1: Quality Metric Calculation (Completeness)
     # ROLE-ANNOTATED INPUTS: Each input has explicit role
     _:completenessOp a tb:Operation ;
-                  tb:hasAbstract ab:qM ;
+                  tb:hasAbstract ab:CheckCompleteness ;
                   tb:hasInput [
                       tb:value ?targetAttr ;
                       tb:role "targetAttribute"

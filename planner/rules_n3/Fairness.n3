@@ -45,7 +45,7 @@
 {
     # Operation 1: Quality Metric Calculation (Fairness)
     _:fairnessOp a tb:Operation ;
-                  tb:hasAbstract ab:qM_Fairness ;
+                  tb:hasAbstract ab:CheckFairness ;
                   tb:hasInput [
                       tb:value ?targetAttr ;
                       tb:role "targetAttribute"
