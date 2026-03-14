@@ -35,19 +35,17 @@
     
     ?permission odrl:constraint ?constraint .
 
-    # Constraint details (Completeness >= threshold)
+    # Constraint details
     ?constraint odrl:leftOperand ?metric ;
                 odrl:operator ?operator ;
                 odrl:rightOperand ?threshold .
     
-    # The Metric should be an instance of ab:CheckCompleteness (Completeness Metric)
-    # ?metric dqv:isMeasurementOf ab:CheckCompleteness .
-
     # Ensure it is Completeness
     ?policy tb:qualityDimension "Completeness" .
 
-    # Resolve physical attribute via ConstraintPropagation rule
+    # Resolve physical attribute (Provided by ConstraintPropagation)
     ?permission tb:physicalAttribute ?targetAttr .
+
     
 }
 =>

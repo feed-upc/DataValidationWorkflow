@@ -165,4 +165,3 @@
     # Propagate it as the resolved attribute
     ?permission tb:physicalAttribute ?physicalAttr .
 } .
-

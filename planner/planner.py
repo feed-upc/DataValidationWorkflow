@@ -402,12 +402,6 @@ def main():
     
     print(f"\n✓ Generated PolicyChecker with {len(pc_graph)} triples")
 
-    # Save to file (required for test script)
-    output_filename = f"policy_checker_{dp_name}_semantic.ttl"
-    output_path = str(Path(__file__).parent / output_filename)
-    planner.save_policy_checkers(pc_graph, output_path)
-    print(f"✓ Saved PolicyChecker to {output_path}")
-    
     # Merge PolicyCheckers to main SDM (single source of truth)
     print(f"🔄 Merging PolicyCheckers to main SDM...")
     planner.merge_policy_checkers_to_sdm(pc_graph)

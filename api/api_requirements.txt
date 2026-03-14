@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+rdflib
+pydantic
+requests
+great-expectations
+pandas
+papermill

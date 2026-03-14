@@ -1,0 +1,373 @@
+<mxfile host="app.diagrams.net" modified="2026-03-14T12:00:00.000Z" agent="draw.io" version="24.0.0" type="device">
+  <diagram id="validation-workflow" name="Validation Workflow">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- ============================================ -->
+        <!-- TITLE -->
+        <!-- ============================================ -->
+        <mxCell id="title" value="&lt;b&gt;Data Validation Workflow&lt;/b&gt;" style="text;html=1;fontSize=22;fontFamily=Helvetica;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="560" y="15" width="480" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- ============================================ -->
+        <!-- LAYER: Federated Computational Governance -->
+        <!-- ============================================ -->
+        <mxCell id="gov_layer" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;arcSize=6;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="40" y="70" width="1520" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="gov_label" value="&lt;b&gt;Federated Computational Governance Layer&lt;/b&gt;" style="text;html=1;fontSize=14;fontFamily=Helvetica;align=left;verticalAlign=top;fontColor=#1a3a6b;" vertex="1" parent="1">
+          <mxGeometry x="55" y="78" width="400" height="25" as="geometry"/>
+        </mxCell>
+
+        <!-- TBox -->
+        <mxCell id="tbox" value="&lt;b&gt;TBox&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Ontology&lt;br&gt;(DCAT, CSVW, DQV,&lt;br&gt;ODRL, PROV-O)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="70" y="115" width="130" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- Common Data Models -->
+        <mxCell id="cdm" value="&lt;b&gt;Common Data&lt;br&gt;Models&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;EHDS Patient&lt;br&gt;Summary (JSON-LD)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="220" y="115" width="130" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- ODRL Policies -->
+        <mxCell id="odrl_policies" value="&lt;b&gt;ODRL Policies&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;DQR1-6 Rules&lt;br&gt;(JSON-LD)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="370" y="115" width="130" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- SDM -->
+        <mxCell id="sdm" value="&lt;b&gt;Semantic Data Model&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;sdm.ttl&lt;br&gt;(Single Source of Truth)&lt;/font&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="560" y="100" width="150" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- DQR Patterns -->
+        <mxCell id="dqr_patterns" value="&lt;b&gt;DQR Patterns&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;DQRP1-6&lt;br&gt;(Reusable Templates)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="70" y="195" width="130" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- DQR Requirements -->
+        <mxCell id="dqr_reqs" value="&lt;b&gt;DQR Requirements&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;DQR1-6EH&lt;br&gt;(Concrete Instances)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="220" y="195" width="130" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- Policy Checkers (output) -->
+        <mxCell id="pc_store" value="&lt;b&gt;PolicyCheckers&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Operation Chains&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="770" y="115" width="130" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- Validation Services -->
+        <mxCell id="val_services" value="&lt;b&gt;Validation&lt;br&gt;Services&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Docker Containers&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="920" y="115" width="130" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- Validation Reports -->
+        <mxCell id="val_reports" value="&lt;b&gt;Validation Reports&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;PROV-O Provenance&lt;br&gt;Status, Duration, Code&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="115" width="150" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrows within gov layer -->
+        <mxCell id="e_tbox_sdm" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#6c8ebf;" edge="1" parent="1" source="tbox" target="sdm">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_cdm_sdm" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#6c8ebf;" edge="1" parent="1" source="cdm" target="sdm">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_odrl_sdm" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#6c8ebf;" edge="1" parent="1" source="odrl_policies" target="sdm">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_pat_req" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d6b656;" edge="1" parent="1" source="dqr_patterns" target="dqr_reqs">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_req_odrl" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d6b656;" edge="1" parent="1" source="dqr_reqs" target="odrl_policies">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ============================================ -->
+        <!-- LAYER: Data Platform -->
+        <!-- ============================================ -->
+        <mxCell id="dp_layer" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="290" width="500" height="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="dp_label" value="&lt;b&gt;Data Platform Layer&lt;/b&gt;" style="text;html=1;fontSize=14;fontFamily=Helvetica;align=left;verticalAlign=top;fontColor=#2d5a1e;" vertex="1" parent="1">
+          <mxGeometry x="55" y="298" width="250" height="25" as="geometry"/>
+        </mxCell>
+
+        <!-- Profiler -->
+        <mxCell id="profiler" value="&lt;b&gt;Profiler&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;DCAT/CSVW&lt;br&gt;Metadata Extraction&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b9e0a5;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="70" y="335" width="130" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- Federator -->
+        <mxCell id="federator" value="&lt;b&gt;Federator&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Schema Mapping&lt;br&gt;+ Policy Binding&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b9e0a5;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="220" y="335" width="130" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- Data Contract -->
+        <mxCell id="contract" value="&lt;b&gt;Data Contract&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;dp1.json&lt;br&gt;Mappings + Policies&lt;/font&gt;" style="shape=document;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=0.1;fillColor=#b9e0a5;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="370" y="330" width="140" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- DP layer edges -->
+        <mxCell id="e_prof_fed" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;" edge="1" parent="1" source="profiler" target="federator">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_fed_dc" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;" edge="1" parent="1" source="federator" target="contract">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_fed_sdm" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" edge="1" parent="1" source="federator" target="sdm">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ============================================ -->
+        <!-- LAYER: Data Product -->
+        <!-- ============================================ -->
+        <mxCell id="dprod_layer" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="460" width="500" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="dprod_label" value="&lt;b&gt;Data Product Layer&lt;/b&gt;" style="text;html=1;fontSize=14;fontFamily=Helvetica;align=left;verticalAlign=top;fontColor=#8c2020;" vertex="1" parent="1">
+          <mxGeometry x="55" y="468" width="250" height="25" as="geometry"/>
+        </mxCell>
+
+        <!-- Data Product -->
+        <mxCell id="dp_ehds" value="&lt;b&gt;EHDS AMR&lt;br&gt;Data Product&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Patient_Summary.csv&lt;br&gt;Hospital.csv, Isolate.csv …&lt;/font&gt;" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="80" y="495" width="190" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- Metadata -->
+        <mxCell id="dp_meta" value="&lt;b&gt;Metadata&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Data Dictionary&lt;br&gt;Use Case&lt;/font&gt;" style="shape=document;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=0.1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="310" y="498" width="120" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- DP to Profiler -->
+        <mxCell id="e_dp_prof" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#b85450;" edge="1" parent="1" source="dp_ehds" target="profiler">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ============================================ -->
+        <!-- CONNECTOR: Validation Framework -->
+        <!-- ============================================ -->
+        <mxCell id="connector_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;arcSize=6;strokeWidth=2;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="580" y="290" width="980" height="300" as="geometry"/>
+        </mxCell>
+        <mxCell id="connector_label" value="&lt;b&gt;Connector — Validation Framework&lt;/b&gt;" style="text;html=1;fontSize=14;fontFamily=Helvetica;align=left;verticalAlign=top;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="595" y="298" width="350" height="25" as="geometry"/>
+        </mxCell>
+
+        <!-- ====== PHASE 1 LABEL ====== -->
+        <mxCell id="phase1_label" value="&lt;b&gt;PHASE 1&lt;/b&gt;&lt;br&gt;Planning" style="text;html=1;fontSize=12;fontFamily=Helvetica;align=center;verticalAlign=middle;fontColor=#1a56db;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry x="600" y="326" width="80" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- PLANNER -->
+        <mxCell id="planner_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#3b82f6;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="600" y="370" width="440" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="planner_title" value="&lt;b&gt;PLANNER&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;N3 Logic-Based Policy Planning&lt;/font&gt;" style="text;html=1;fontSize=13;fontFamily=Helvetica;align=left;verticalAlign=top;fontColor=#1e40af;" vertex="1" parent="1">
+          <mxGeometry x="615" y="378" width="260" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- N3 Rules -->
+        <mxCell id="n3_rules" value="&lt;b&gt;N3 Rules&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;LoadData.n3&lt;br&gt;Completeness.n3&lt;br&gt;Validity.n3&lt;br&gt;Consistency.n3&lt;br&gt;Fairness.n3&lt;br&gt;Volume.n3&lt;br&gt;Timeliness.n3&lt;br&gt;ConstraintPropagation.n3&lt;/font&gt;" style="shape=document;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=0.1;fillColor=#dbeafe;strokeColor=#3b82f6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="620" y="418" width="120" height="140" as="geometry"/>
+        </mxCell>
+
+        <!-- EYE Reasoner -->
+        <mxCell id="eye_reasoner" value="&lt;b&gt;EYE Reasoner&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;N3 Forward&lt;br&gt;Chaining&lt;/font&gt;" style="shape=process;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#dbeafe;strokeColor=#3b82f6;fontSize=11;size=0.08;" vertex="1" parent="1">
+          <mxGeometry x="770" y="425" width="120" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- PolicyChecker Generation -->
+        <mxCell id="pc_gen" value="&lt;b&gt;PolicyChecker&lt;br&gt;Generation&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;Operation Chains&lt;br&gt;LoadData → Check* → Constraint&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#3b82f6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="770" y="500" width="130" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- Skolemization -->
+        <mxCell id="skolem" value="&lt;b&gt;Skolemize&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;Blank Nodes → URIs&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#3b82f6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="920" y="425" width="100" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Planner internal edges -->
+        <mxCell id="e_n3_eye" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#3b82f6;" edge="1" parent="1" source="n3_rules" target="eye_reasoner">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_eye_pc" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#3b82f6;" edge="1" parent="1" source="eye_reasoner" target="pc_gen">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_eye_skolem" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#3b82f6;" edge="1" parent="1" source="eye_reasoner" target="skolem">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ====== PHASE 2 LABEL ====== -->
+        <mxCell id="phase2_label" value="&lt;b&gt;PHASE 2&lt;/b&gt;&lt;br&gt;Execution" style="text;html=1;fontSize=12;fontFamily=Helvetica;align=center;verticalAlign=middle;fontColor=#b45309;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="326" width="80" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- EXECUTOR -->
+        <mxCell id="executor_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="370" width="480" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="executor_title" value="&lt;b&gt;EXECUTOR&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Code Generation &amp;amp; Execution&lt;/font&gt;" style="text;html=1;fontSize=13;fontFamily=Helvetica;align=left;verticalAlign=top;fontColor=#92400e;" vertex="1" parent="1">
+          <mxGeometry x="1075" y="378" width="250" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- N3 Parameter Binding -->
+        <mxCell id="param_bind" value="&lt;b&gt;N3 Parameter&lt;br&gt;Binding&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;boundParameter rules&lt;/font&gt;" style="shape=process;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#fef3c7;strokeColor=#d97706;fontSize=10;size=0.08;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="425" width="120" height="55" as="geometry"/>
+        </mxCell>
+
+        <!-- Code Metadata -->
+        <mxCell id="code_meta" value="&lt;b&gt;Code Metadata&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;Implementation&lt;br&gt;Catalog (JSON-LD)&lt;/font&gt;" style="shape=document;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=0.1;fillColor=#fef3c7;strokeColor=#d97706;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="500" width="120" height="55" as="geometry"/>
+        </mxCell>
+
+        <!-- UDF Composer -->
+        <mxCell id="udf_composer" value="&lt;b&gt;UDF Composer&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;Compose Python&lt;br&gt;Pipeline&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="420" width="110" height="55" as="geometry"/>
+        </mxCell>
+
+        <!-- Backend Switch -->
+        <mxCell id="backend_switch" value="&lt;b&gt;Backend&lt;/b&gt;" style="shape=mxgraph.flowchart.decision;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1370" y="418" width="70" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- Pandas Backend -->
+        <mxCell id="pandas_backend" value="&lt;b&gt;Pandas&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;exec() UDF&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1460" y="400" width="70" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- GX Backend -->
+        <mxCell id="gx_backend" value="&lt;b&gt;Great&lt;br&gt;Expectations&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:8px&quot;&gt;Expectation Suite&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="1460" y="455" width="70" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Validation Report Generator -->
+        <mxCell id="report_gen" value="&lt;b&gt;Validation Report&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;PROV-O Annotation&lt;br&gt;Status + Duration + Code&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1310" y="505" width="150" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Docker Export -->
+        <mxCell id="docker_export" value="&lt;b&gt;Docker Export&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;Dockerfile +&lt;br&gt;validation_job.py&lt;/font&gt;" style="shape=mxgraph.flowchart.stored_data;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="505" width="70" height="55" as="geometry"/>
+        </mxCell>
+
+        <!-- Executor internal edges -->
+        <mxCell id="e_pb_udf" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d97706;" edge="1" parent="1" source="param_bind" target="udf_composer">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_cm_udf" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d97706;" edge="1" parent="1" source="code_meta" target="udf_composer">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_udf_be" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d97706;" edge="1" parent="1" source="udf_composer" target="backend_switch">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_be_pd" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d97706;" edge="1" parent="1" source="backend_switch" target="pandas_backend">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_be_gx" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d97706;" edge="1" parent="1" source="backend_switch" target="gx_backend">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_udf_docker" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d97706;dashed=1;" edge="1" parent="1" source="udf_composer" target="docker_export">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_be_report" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d97706;" edge="1" parent="1" source="backend_switch" target="report_gen">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1405" y="490"/>
+              <mxPoint x="1405" y="530"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ============================================ -->
+        <!-- CROSS-LAYER EDGES (thick, colored) -->
+        <!-- ============================================ -->
+
+        <!-- SDM → Planner (input) -->
+        <mxCell id="e_sdm_planner" value="&lt;font style=&quot;font-size:9px&quot;&gt;SDM + Policies&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#3b82f6;strokeWidth=2;fontColor=#3b82f6;" edge="1" parent="1" source="sdm" target="eye_reasoner">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="635" y="290"/>
+              <mxPoint x="750" y="290"/>
+              <mxPoint x="750" y="455"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Planner → PolicyCheckers store -->
+        <mxCell id="e_pc_store" value="&lt;font style=&quot;font-size:9px&quot;&gt;PolicyCheckers&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9673a6;strokeWidth=2;fontColor=#9673a6;" edge="1" parent="1" source="skolem" target="pc_store">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="970" y="290"/>
+              <mxPoint x="835" y="290"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- PolicyCheckers → Executor (input) -->
+        <mxCell id="e_pc_exec" value="&lt;font style=&quot;font-size:9px&quot;&gt;Operation Chain&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d97706;strokeWidth=2;fontColor=#d97706;" edge="1" parent="1" source="pc_gen" target="param_bind">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1050" y="530"/>
+              <mxPoint x="1050" y="452"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Report → Validation Reports store -->
+        <mxCell id="e_report_store" value="&lt;font style=&quot;font-size:9px&quot;&gt;Annotate SDM&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9673a6;strokeWidth=2;fontColor=#9673a6;" edge="1" parent="1" source="report_gen" target="val_reports">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1385" y="290"/>
+              <mxPoint x="1145" y="290"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Docker → Validation Services -->
+        <mxCell id="e_docker_svc" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9673a6;strokeWidth=2;dashed=1;" edge="1" parent="1" source="docker_export" target="val_services">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1265" y="290"/>
+              <mxPoint x="985" y="290"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ============================================ -->
+        <!-- STEP NUMBERS -->
+        <!-- ============================================ -->
+        <mxCell id="step1" value="&lt;b&gt;①&lt;/b&gt;" style="text;html=1;fontSize=18;fontColor=#b85450;align=center;" vertex="1" parent="1">
+          <mxGeometry x="155" y="453" width="30" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="step2" value="&lt;b&gt;②&lt;/b&gt;" style="text;html=1;fontSize=18;fontColor=#82b366;align=center;" vertex="1" parent="1">
+          <mxGeometry x="155" y="308" width="30" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="step3" value="&lt;b&gt;③&lt;/b&gt;" style="text;html=1;fontSize=18;fontColor=#82b366;align=center;" vertex="1" parent="1">
+          <mxGeometry x="305" y="308" width="30" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="step4" value="&lt;b&gt;④&lt;/b&gt;" style="text;html=1;fontSize=18;fontColor=#3b82f6;align=center;" vertex="1" parent="1">
+          <mxGeometry x="810" y="396" width="30" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="step5" value="&lt;b&gt;⑤&lt;/b&gt;" style="text;html=1;fontSize=18;fontColor=#d97706;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1260" y="396" width="30" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- ============================================ -->
+        <!-- LEGEND -->
+        <!-- ============================================ -->
+        <mxCell id="legend_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="610" width="520" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend_title" value="&lt;b&gt;Workflow Steps&lt;/b&gt;" style="text;html=1;fontSize=11;fontFamily=Helvetica;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="50" y="615" width="120" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend_text" value="&lt;font style=&quot;font-size:10px&quot;&gt;① Data Product provides CSV/DICOM data&lt;br&gt;② Profiler extracts DCAT/CSVW metadata → SDM&lt;br&gt;③ Federator creates Data Contract (schema mapping + policy binding) → SDM&lt;br&gt;④ Planner applies N3 rules via EYE reasoner → generates PolicyChecker operation chains&lt;br&gt;⑤ Executor binds parameters, composes UDFs, executes (Pandas/GX) → Validation Report + Docker service&lt;/font&gt;" style="text;html=1;fontSize=10;fontFamily=Helvetica;align=left;verticalAlign=top;spacingTop=2;" vertex="1" parent="1">
+          <mxGeometry x="50" y="636" width="500" height="60" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

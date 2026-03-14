@@ -1,13 +1,20 @@
 import types
 from datetime import datetime
 
-from flask import Flask, request, jsonify
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse
 from rdflib import Graph, Namespace, URIRef
 import os, sys
 import logging
 from typing import Dict, List, Optional
 import json
-
+import os, sys
+import logging
+from typing import Dict, List, Optional
+import json
+import subprocess
+import shutil
+from pathlib import Path
 
 tbox = Namespace('http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/tbox#')
 abox = Namespace('http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/abox#')
@@ -15,27 +22,22 @@ abox = Namespace('http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/ab
 base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 sys.path.append(base_dir)
 
-
-from Connector.ValidationFramework.planner.planner import DCParser
-from Connector.ValidationFramework.translator.executor import PCTranslator
-
-
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
-app = Flask(__name__)
+app = FastAPI(title="Validation Framework API")
 
 # Constants
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SDM_PATH = os.path.join(BASE_DIR, '../../../FederatedComputationalGovernance/SemanticDataModel/sdm.ttl')
+PROJECT_ROOT = os.environ.get('PROJECT_ROOT', os.path.join(BASE_DIR, '..', '..', '..'))
+SDM_PATH = os.environ.get('SDM_PATH', os.path.join(PROJECT_ROOT, 'FederatedComputationalGovernance', 'SemanticDataModel', 'sdm.ttl'))
 
 # Namespaces
 TB = Namespace("http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/tbox#")
 AB = Namespace("http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/abox#")
 ODRL = Namespace("http://www.w3.org/ns/odrl/2/")
-
 
 class ValidationFramework:
     def __init__(self):
@@ -50,29 +52,6 @@ class ValidationFramework:
         except Exception as e:
             logging.error(f"Error loading semantic model: {str(e)}")
             raise
-
-    def parse_contracts(self, dp: str) -> Graph:
-        """Parse contracts for a given data product"""
-        C = DCParser(dp, self.sdm).parse_contracts()
-        return C
-
-    def translate_policy_checker(self, pc: str) -> types.FunctionType:
-        """Translate a policy checker to a different format"""
-        try:
-            udf = PCTranslator(pc, self.sdm).translate()
-            initOP = self.sdm.value(subject=abox[pc.split("#")[1]], predicate=tbox.nextStep)
-            path = self.sdm.value(subject=initOP, predicate=tbox.hasInput)
-            try:
-                print("entrou")
-                udf(path)
-            except Exception as e:
-                logging.error(f"Error executing translated policy checker: {str(e)}")
-                return
-            return udf
-
-        except Exception as e:
-            logging.error(f"Error translating policy checker: {str(e)}")
-            return
 
     def query_policy_checkers(self, dp: str) -> List[str]:
         """Query policy checkers for a given data product"""
@@ -135,7 +114,6 @@ class ValidationFramework:
         results = self.sdm.query(query)
         return [str(row['dp']).split('#')[1] for row in results]
 
-
     def add_policy(self, policy) -> Graph:
         instances = Graph().parse(data=policy, format='json-ld')
         self.sdm += instances
@@ -146,103 +124,185 @@ class ValidationFramework:
 validation_framework = ValidationFramework()
 
 
-
-
-@app.route('/test', methods=['GET'])
+@app.get('/test')
 def test():
-
-
     validation_result = True
-
     if validation_result:
-        return jsonify({'status': 'true'})
+        return {'status': 'true'}
     else:
-        return jsonify({'status': 'false'})
+        return {'status': 'false'}
 
 
-@app.route('/data-products', methods=['GET'])
+@app.get('/data-products')
 def get_data_products():
     try:
         products = validation_framework.get_data_products()
-        return jsonify({
+        return {
             'data_products': products,
             'count': len(products)
-        })
+        }
     except Exception as e:
         logging.error(f"Error getting data products: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.route('/policies', methods=['PUT'])
-def add_policy():
+@app.put('/policies')
+async def add_policy(request: Request):
     try:
-        policy_data = request.get_json()
+        policy_data = await request.json()
 
         # Maybe add SHACL shapes for validation
         policy_id = validation_framework.add_policy(policy_data)
 
-        return jsonify({
+        return {
             'message': 'Policy added successfully',
             'policy_id': policy_id,
             'timestamp': datetime.now().isoformat()
-        })
+        }
 
     except Exception as e:
         logging.error(f"Error adding policy: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.route('/policy-checkers/<dp_id>', methods=['GET'])
+
+@app.get('/policy-checkers/{dp_id}')
 def get_policy_checkers(dp_id: str):
     try:
         checkers = validation_framework.query_policy_checkers(dp_id)
-        return jsonify({
+        return {
             'data_product': dp_id,
             'policy_checkers': checkers,
             'count': len(checkers)
-        })
+        }
     except Exception as e:
         logging.error(f"Error getting policy checkers: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.route('/validation-reports', methods=['GET'])
+@app.get('/validation-reports')
 def get_validation_reports():
     try:
         reports = validation_framework.get_validation_reports()
-        return jsonify({
+        return {
             'reports': reports,
             'count': len(reports)
-        })
+        }
     except Exception as e:
         logging.error(f"Error getting validation reports: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.route('/parse-contracts/<dp_id>', methods=['GET'])
-def parse_contracts(dp_id: str):
+@app.post('/generate-validation-service')
+async def generate_validation_service(request: Request):
+    """
+    HTTP endpoint to trigger the end-to-end framework generation process (Federator, Planner, Executor).
+    This abstracts away the local shell commands from the frontend GUI.
+    """
     try:
-        Checkers = ValidationFramework().parse_contracts(dp_id)
-        return jsonify({
-            'message': f'Contracts parsed successfully for data product {dp_id}',
-            'status': 'success'
-        })
+        try:
+            data = await request.json()
+        except:
+            raise HTTPException(status_code=400, detail="Invalid JSON body")
+            
+        rule_id = data.get('rule_id')
+        data_product = data.get('data_product', 'Patient_Summary')
+        
+        if not rule_id:
+            raise HTTPException(status_code=400, detail="rule_id is required")
+            
+        # Context Paths
+        project_root = Path(PROJECT_ROOT)
+        
+        # 1. Update dp1.json to bind this specific rule to the dataset
+        dp1_path = project_root / 'DataPlatformLayer' / 'Integration' / 'dp1.json'
+        
+        with open(dp1_path, "r") as f:
+            contract = json.load(f)
+            
+        backup_path = dp1_path.with_suffix(".json.bak")
+        with open(backup_path, "w") as f:
+            json.dump(contract, f)
+            
+        contract["policies"] = [f"{rule_id}Rule"]
+        with open(dp1_path, "w") as f:
+            json.dump(contract, f, indent=4)
+            
+        export_dir = project_root / 'FederatedComputationalGovernance' / 'ComputationalCatalogues' / 'services'
+        export_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 2. Invoke the framework orchestrator (demo.py) via subprocess to parse SDM and execute
+        env = os.environ.copy()
+        env["PATH"] = str(project_root / "node_modules/.bin") + os.pathsep + env.get("PATH", "")
+        
+        cmd = [
+            sys.executable, "demo/run_demo.py",
+            "--skip-registration",
+            "--backend", "gx", 
+            "--export-docker", str(export_dir)
+        ]
+        
+        result = subprocess.run(
+            cmd, cwd=str(project_root), capture_output=True, text=True, env=env
+        )
+        
+        if result.returncode == 0:
+            import base64
+            
+            # Find the most recently generated policyChecker folder
+            checker_dirs = [d for d in export_dir.glob("policyChecker_*") if d.is_dir()]
+            if not checker_dirs:
+                return JSONResponse(
+                    status_code=500,
+                    content={'error': 'Validation framework succeeded but no policyChecker directory was generated.'}
+                )
+            
+            # Sort by modification time, newest first
+            checker_dirs.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+            latest_checker_dir = checker_dirs[0]
+            
+            # Create a ZIP archive of the latest checker directory
+            zip_path = latest_checker_dir.with_suffix('.zip')
+            shutil.make_archive(str(latest_checker_dir), 'zip', str(latest_checker_dir))
+            
+            # Read the zip file and encode to base64
+            with open(zip_path, "rb") as f:
+                zip_data = f.read()
+                zip_base64 = base64.b64encode(zip_data).decode('utf-8')
+                
+            # Read the generated validation logic to display on screen
+            validation_job_path = latest_checker_dir / 'validation_job.py'
+            validation_code = ""
+            if validation_job_path.exists():
+                with open(validation_job_path, "r") as f:
+                    validation_code = f.read()
+
+            return {
+                'message': 'Validation service successfully generated.',
+                'export_dir': str(latest_checker_dir),
+                'zip_base64': zip_base64,
+                'zip_filename': f"{latest_checker_dir.name}.zip",
+                'validation_code': validation_code,
+                'logs': result.stdout
+            }
+        else:
+            logging.error(f"Framework execution failed: {result.stderr or result.stdout}")
+            return JSONResponse(
+                status_code=500,
+                content={
+                    'error': 'Validation framework failed to generate service.',
+                    'logs': result.stderr or result.stdout
+                }
+            )
+            
+    except HTTPException:
+        raise
     except Exception as e:
-        logging.error(f"Error parsing contracts: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/translate/<pc_id>', methods=['GET'])
-def translate_policy_checker(pc_id: str):
-    try:
-        udf = ValidationFramework().translate_policy_checker(pc_id)
-        return jsonify({
-            'message': f'Policy checker {pc_id} translated successfully',
-            'status': 'success'
-        })
-    except Exception as e:
-        logging.error(f"Error translating policy checker: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
+        logging.error(f"Error generating validation service: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if 'backup_path' in locals() and backup_path.exists():
+            shutil.move(str(backup_path), str(dp1_path))
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    import uvicorn
+    uvicorn.run(app, host='0.0.0.0', port=5000)
