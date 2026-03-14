@@ -1,13 +1,19 @@
-# N3 Logic Rule: Consistency Policy Transformation
+# N3 Logic Rule: Consistency Policy Transformation (Refinement-Based)
 # Rule Chaining - Automatically chains from LoadData operation
 #
-# Transforms ODRL Permission policies with consistency constraints into data quality validation operations.
+# Matches ODRL policies where the permission has a duty with:
+#   - An action refined by a condition (odrl:refinement on the Action)
+#   - A constraint specifying the expected value for the target attribute
+#
+# Example: "When gender isAnyOf male, pregnancyHistory must be NULL"
+#   - Refinement: gender isAnyOf "male" (the WHERE/condition)
+#   - Constraint: ConsistencyMeasurement eq "NULL" (the expected value)
+#   - Target: pregnancyHistory (from permission's odrl:target)
 
 @prefix odrl: <http://www.w3.org/ns/odrl/2/> .
 @prefix tb: <http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/tbox#> .
 @prefix ab: <http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/abox#> .
 @prefix dqv: <http://www.w3.org/ns/dqv#> .
-@prefix qudt: <http://qudt.org/vocab/unit/> .
 @prefix csvw: <http://www.w3.org/ns/csvw#> .
 @prefix schema: <http://schema.org/> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
@@ -25,11 +31,20 @@
     ?policy a dqv:QualityPolicy ;
             odrl:permission ?permission .
     
-    ?permission odrl:constraint ?constraint .
-
-    ?constraint odrl:leftOperand ?metric ;
-                odrl:operator ?operator ;
-                odrl:rightOperand ?threshold .
+    # Navigate to duty with action refinement
+    ?permission odrl:duty ?duty .
+    
+    ?duty odrl:action ?actionNode .
+    ?actionNode rdf:value ab:CheckConsistency .
+    ?actionNode odrl:refinement ?refinement .
+    
+    # Extract condition from refinement
+    ?refinement odrl:leftOperand ?condAttr .
+    ?refinement odrl:rightOperand ?condValues .
+    
+    # Extract expected value from duty constraint
+    ?duty odrl:constraint ?constraint .
+    ?constraint odrl:rightOperand ?expectedValue .
     
     ?policy tb:qualityDimension "Consistency" .
 
@@ -48,27 +63,20 @@
                       tb:value ab:data ;
                       tb:role "previousResult"
                   ] ;
-                  tb:hasOutput ab:score ;
-                  tb:nextStep _:validationOp .
+                  tb:hasInput [
+                      tb:value ?condAttr ;
+                      tb:role "conditionAttribute"
+                  ] ;
+                  tb:hasInput [
+                      tb:value ?condValues ;
+                      tb:role "conditionValues"
+                  ] ;
+                  tb:hasInput [
+                      tb:value ?expectedValue ;
+                      tb:role "expectedValue"
+                  ] ;
+                  tb:hasOutput ab:boolean ;
+                  tb:isTerminal true .
     
     ?loadOp tb:nextStep _:consistencyOp .
-    
-    _:validationOp a tb:Operation ;
-                   tb:hasAbstract odrl:Constraint ;
-                   tb:hasInput [
-                       tb:value ab:data ;
-                       tb:role "previousResult"
-                   ] ;
-                   tb:hasInput [
-                       tb:value ?threshold ;
-                       tb:role "threshold"
-                   ] ;
-                   tb:hasInput [
-                       tb:value ?operator ;
-                       tb:role "operator"
-                   ] ;
-                   tb:hasOutput ab:boolean ;
-                   tb:isTerminal true .
-    
-    _:consistencyOp tb:nextStep _:validationOp .
 } .

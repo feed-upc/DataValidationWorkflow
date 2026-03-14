@@ -84,13 +84,9 @@ class CodeMetadataLoader:
         impl = self.implementations.get(impl_id)
         
         if not impl:
-            raise ValueError(f"Implementation not found: {impl_id}")
+            return None
             
-        gx_type = impl.get('tb:gxExpectationType')
-        if not gx_type:
-            raise ValueError(f"No gxExpectationType found for {impl_id}")
-            
-        return gx_type
+        return impl.get('tb:gxExpectationType')
     
     def get_dependencies(self, impl_uri: URIRef) -> list:
         """Get dependencies for implementation"""
@@ -493,7 +489,7 @@ class SemanticN3Executor:
         freshness_age_col = None
         
         for i, op in enumerate(operations):
-            if op['gx_type'] == 'load_data':
+            if not op['gx_type'] or op['gx_type'] == 'load_data':
                 continue
                 
             if op['gx_type'].startswith('constraint_'):
@@ -544,9 +540,11 @@ class SemanticN3Executor:
                 composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnValuesToNotBeNull(**{kwargs}))\n\n"
             
             elif op['gx_type'] == 'expect_column_values_to_be_in_set':
-                kwargs['value_set'] = [country.alpha_2 for country in __import__('pycountry').countries]
                 composed_code += f"    # Step {op['num']}: {op['type']}\n"
-                composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnValuesToBeInSet(**{kwargs}))\n\n"
+                composed_code += f"    import pycountry\n"
+                composed_code += f"    _kwargs = {repr(kwargs)}\n"
+                composed_code += f"    _kwargs['value_set'] = [c.alpha_2 for c in pycountry.countries]\n"
+                composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnValuesToBeInSet(**_kwargs))\n\n"
                 
             elif op['gx_type'] == 'expect_column_kl_divergence_to_be_less_than':
                 composed_code += f"    # Step {op['num']}: {op['type']}\n"
@@ -570,8 +568,13 @@ class SemanticN3Executor:
                 composed_code += f"    suite.add_expectation(gx.expectations.ExpectTableRowCountToBeBetween(**{kwargs}))\n\n"
                 
             elif op['gx_type'] == 'expect_column_values_to_be_null':
-                kwargs['row_condition'] = 'gender == "M" or gender == "male"'
-                kwargs['condition_parser'] = 'pandas'
+                # Build row_condition dynamically from refinement parameters
+                condition_attr = b.get('condition_attr')
+                condition_values = b.get('condition_values', '')
+                if condition_attr and condition_values:
+                    parts = [f'{condition_attr} == "{v.strip()}"' for v in condition_values.split(',')]
+                    kwargs['row_condition'] = ' or '.join(parts)
+                    kwargs['condition_parser'] = 'pandas'
                 if 'mostly' in kwargs:
                     del kwargs['mostly']
                 composed_code += f"    # Step {op['num']}: {op['type']}\n"
@@ -605,38 +608,104 @@ class SemanticN3Executor:
         
         if getattr(self, 'export_docker_dir', None) and pc_uri:
             self._export_docker_service_gx(pc_uri, composed_code, operations, previous_result)
-            
-        print("EXECUTING GX SUITE LOCALLY...")
-        try:
-            exec_env = {'gx': __import__('great_expectations'), 'pd': pd}
-            exec(composed_code, exec_env)
-        except ModuleNotFoundError:
-            print("⚠  great_expectations not installed locally. Skipping local prep validation.")
-            print("✓  Docker export completed successfully.")
-            return True, composed_code
-        
-        data_path = "data.csv"
+        else:
+            # Even without --export-docker, we need a temp dir to build+run
+            tmp_export = Path(tempfile.mkdtemp(prefix="pc_gx_"))
+            self._export_docker_service_gx(pc_uri, composed_code, operations, previous_result,
+                                           override_dir=tmp_export)
+
+        # ── Build & Run the PolicyChecker container ──
+        hash_id = hashlib.md5(str(pc_uri).encode()).hexdigest()[:8]
+        if getattr(self, 'export_docker_dir', None):
+            service_dir = Path(self.export_docker_dir) / f"policyChecker_{hash_id}"
+        else:
+            service_dir = tmp_export / f"policyChecker_{hash_id}"
+
+        image_tag = f"policychecker-{hash_id}:latest"
+
+        # Resolve data path — handle host vs container path differences
+        data_path = None
         first_bindings = self.get_semantic_bindings(operations[0]['uri'], previous_result)
         if 'p' in first_bindings:
-             data_path = first_bindings['p']
-             
-        try:
-             result = exec_env['run_gx_validation'](data_path)
-             print(f"✓ GX Suite executed successfully. Success: {result}\n")
-        except Exception as e:
-             print(f"✗ GX Execution Failed: {e}\n")
-             result = False
-             
+            data_path = first_bindings['p']
+
+        data_file = Path(data_path) if data_path else None
+        if not data_file or not data_file.exists():
+            # Try to locate the file under common base directories
+            candidates = []
+            if data_path:
+                # Extract the relative part after a known project marker
+                for marker in ("DataProductLayer/", "DataProduct_EHDS_AMR/"):
+                    idx = data_path.find(marker)
+                    if idx != -1:
+                        rel = data_path[idx:]
+                        candidates += [Path("/app") / rel, Path("/project") / rel]
+                        break
+            candidates.append(Path("/project/DataProductLayer/DataProduct_EHDS_AMR/Data/Patient_Summary.csv"))
+            candidates.append(Path("/app/DataProductLayer/DataProduct_EHDS_AMR/Data/Patient_Summary.csv"))
+            for c in candidates:
+                if c.exists():
+                    data_file = c
+                    break
+
+        if not data_file or not data_file.exists():
+            print(f"  ✗ Data file not found: {data_path}")
+            return False, composed_code
+
+        # Copy the data file into the service dir so Docker can COPY it
+        shutil.copy2(str(data_file), str(service_dir / "data.csv"))
+
+        print(f"\n  Building PolicyChecker image: {image_tag}")
+        build_result = subprocess.run(
+            ["docker", "build", "-t", image_tag, "."],
+            cwd=str(service_dir), capture_output=True, text=True
+        )
+        if build_result.returncode != 0:
+            print(f"  ✗ Docker build failed:\n{build_result.stderr}")
+            return False, composed_code
+
+        print(f"  ✓ Image built: {image_tag}")
+
+        # Run the container — data.csv is baked into the image via COPY
+        print(f"  Running validation container...")
+        run_cmd = [
+            "docker", "run", "--rm",
+            image_tag
+        ]
+        run_result = subprocess.run(run_cmd, capture_output=True, text=True, timeout=300)
+
+        print(run_result.stdout)
+        if run_result.stderr:
+            print(f"  stderr: {run_result.stderr}")
+
+        # Parse result from stdout
+        result = False
+        for line in run_result.stdout.strip().splitlines():
+            stripped = line.strip()
+            if stripped in ("True", "true"):
+                result = True
+                break
+            elif stripped in ("False", "false"):
+                result = False
+                break
+
+        print(f"  ✓ PolicyChecker container result: {result}\n")
+
+        # Clean up temp dir if we created one
+        if 'tmp_export' in locals():
+            shutil.rmtree(str(tmp_export), ignore_errors=True)
+
         return result, composed_code
         
-    def _export_docker_service_gx(self, pc_uri: URIRef, composed_code: str, operations: list, previous_result: Any):
+    def _export_docker_service_gx(self, pc_uri: URIRef, composed_code: str, operations: list, previous_result: Any, override_dir: Path = None):
         """Export the GX composed suite as a standalone Dockerized service"""
         print(f"\n{'='*60}")
         print("EXPORTING GX DOCKERIZED VALIDATION SERVICE")
         print(f"{'='*60}")
         
         hash_id = hashlib.md5(str(pc_uri).encode()).hexdigest()[:8]
-        service_dir = Path(self.export_docker_dir) / f"policyChecker_{hash_id}"
+        base_dir = override_dir if override_dir else Path(self.export_docker_dir)
+        service_dir = base_dir / f"policyChecker_{hash_id}"
         service_dir.mkdir(parents=True, exist_ok=True)
         
         script_path = service_dir / "validation_job.py"
@@ -657,13 +726,8 @@ class SemanticN3Executor:
             f.write('if __name__ == "__main__":\n')
             f.write('    import sys\n')
             
-            data_path = "data.csv"
-            first_bindings = self.get_semantic_bindings(operations[0]['uri'], None)
-            if 'p' in first_bindings:
-                 data_path = first_bindings['p']
-                 
             f.write('    # Extract data path from args or use default\n')
-            f.write(f'    data_file = sys.argv[1] if len(sys.argv) > 1 else "{data_path}"\n')
+            f.write('    data_file = sys.argv[1] if len(sys.argv) > 1 else "data.csv"\n')
             f.write('    print(f"Loading data from {data_file}...")\n')
             f.write('    try:\n')
             f.write('        result = run_gx_validation(data_file)\n')
@@ -690,7 +754,8 @@ class SemanticN3Executor:
             f.write('WORKDIR /app\n\n')
             f.write('COPY requirements.txt .\n')
             f.write('RUN pip install --no-cache-dir -r requirements.txt\n\n')
-            f.write('COPY validation_job.py .\n\n')
+            f.write('COPY validation_job.py .\n')
+            f.write('COPY data.csv .\n\n')
             f.write('ENTRYPOINT ["python", "validation_job.py"]\n')
             
         print(f"  ✓ Generated Dockerfile (GX)")
@@ -849,9 +914,6 @@ class SemanticN3Executor:
             str(abox.CheckVolume): str(abox.ImpQualityMetricRowCount),
             str(abox.CheckConsistency): str(abox.ImpQualityMetricConsistency),
             str(odrl.Constraint): str(abox.ImpConstraintLteq),
-            str(dqv.completeness): str(abox.ImpQualityCompleteness),
-            str(abox.CheckValidity): str(abox.ImpCheckValidity),
-            str(abox.CheckConsistency): str(abox.ImpCheckConsistency),
         }
         
         impl_str = type_to_impl.get(str(op_type))
@@ -951,12 +1013,12 @@ class SemanticN3Executor:
                            Literal(len(result), datatype=XSD.integer)))
              self.graph.add((report_uri, tb.resultValue,
                            Literal(str(result.head().to_dict()))))
-        elif isinstance(result, (int, float)):
-            self.graph.add((report_uri, tb.resultValue, 
-                           Literal(result, datatype=XSD.float)))
         elif isinstance(result, bool):
             self.graph.add((report_uri, tb.resultValue, 
                            Literal(result, datatype=XSD.boolean)))
+        elif isinstance(result, (int, float)):
+            self.graph.add((report_uri, tb.resultValue, 
+                           Literal(result, datatype=XSD.float)))
         elif isinstance(result, str):
             self.graph.add((report_uri, tb.resultValue, Literal(result)))
         

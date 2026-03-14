@@ -223,6 +223,11 @@ async def generate_validation_service(request: Request):
         with open(backup_path, "w") as f:
             json.dump(contract, f)
             
+        # Backup the SDM so it can be restored after the pipeline run
+        sdm_path = Path(SDM_PATH)
+        sdm_backup_path = sdm_path.with_suffix(".ttl.bak")
+        shutil.copy2(str(sdm_path), str(sdm_backup_path))
+            
         contract["policies"] = [f"{rule_id}Rule"]
         with open(dp1_path, "w") as f:
             json.dump(contract, f, indent=4)
@@ -302,6 +307,8 @@ async def generate_validation_service(request: Request):
     finally:
         if 'backup_path' in locals() and backup_path.exists():
             shutil.move(str(backup_path), str(dp1_path))
+        if 'sdm_backup_path' in locals() and sdm_backup_path.exists():
+            shutil.move(str(sdm_backup_path), str(sdm_path))
 
 if __name__ == '__main__':
     import uvicorn

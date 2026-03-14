@@ -243,3 +243,66 @@
 {
   ?op tb:hasImplementation ab:ImpQualityMetricConsistency .
 } .
+
+
+# ==============================================================================
+# RULE 12: Bind conditionAttribute role to condition_attr parameter
+# ==============================================================================
+
+{
+  ?op tb:hasInput ?inputNode .
+  ?inputNode tb:role "conditionAttribute" .
+  ?inputNode tb:value ?attrURI .
+  
+  ?attrURI log:uri ?uriString .
+  (?uriString "#(.+)") string:scrape ?localName .
+}
+=>
+{
+  ?op tb:boundParameter [
+    tb:name "condition_attr" ;
+    tb:value ?localName ;
+    tb:source "hasInput" ;
+    tb:role "conditionAttribute"
+  ] .
+} .
+
+
+# ==============================================================================
+# RULE 13: Bind conditionValues role to condition_values parameter
+# ==============================================================================
+
+{
+  ?op tb:hasInput ?inputNode .
+  ?inputNode tb:role "conditionValues" .
+  ?inputNode tb:value ?values .
+}
+=>
+{
+  ?op tb:boundParameter [
+    tb:name "condition_values" ;
+    tb:value ?values ;
+    tb:source "hasInput" ;
+    tb:role "conditionValues"
+  ] .
+} .
+
+
+# ==============================================================================
+# RULE 14: Bind expectedValue role to expected_value parameter
+# ==============================================================================
+
+{
+  ?op tb:hasInput ?inputNode .
+  ?inputNode tb:role "expectedValue" .
+  ?inputNode tb:value ?val .
+}
+=>
+{
+  ?op tb:boundParameter [
+    tb:name "expected_value" ;
+    tb:value ?val ;
+    tb:source "hasInput" ;
+    tb:role "expectedValue"
+  ] .
+} .

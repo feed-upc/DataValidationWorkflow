@@ -398,7 +398,7 @@
     {
       "@id": "ab:ImpQualityMetricConsistency",
       "@type": "tb:Implementation",
-      "rdfs:comment": "DQRP4: Consistency check - if gender is M, pregnancyHistory must be NULL",
+      "rdfs:comment": "DQRP4: Consistency check - conditional value validation using refinement parameters",
       "tb:forOp": [
         {
           "@id": "ab:CheckConsistency"
@@ -420,12 +420,30 @@
           "tb:name": "attr",
           "tb:role": "attributeReference",
           "tb:type": "string",
-          "tb:description": "Column to check for consistency (e.g., pregnancyHistory)"
+          "tb:description": "Target column to check"
+        },
+        {
+          "tb:name": "condition_attr",
+          "tb:role": "conditionAttribute",
+          "tb:type": "string",
+          "tb:description": "Column used as condition filter"
+        },
+        {
+          "tb:name": "condition_values",
+          "tb:role": "conditionValues",
+          "tb:type": "string",
+          "tb:description": "Comma-separated values for condition filter"
+        },
+        {
+          "tb:name": "expected_value",
+          "tb:role": "expectedValue",
+          "tb:type": "string",
+          "tb:description": "Expected value for target column (NULL for missing)"
         }
       ],
       "tb:hasCode": [
         {
-          "tb:code": "(data.loc[data['gender'].isin(['M', 'male']), attr].isna().sum() / max(data['gender'].isin(['M', 'male']).sum(), 1)) * 100"
+          "tb:code": "data.loc[data[condition_attr].isin(condition_values.split(',')), attr].isna().all() if expected_value == 'NULL' else (data.loc[data[condition_attr].isin(condition_values.split(',')), attr] == expected_value).all()"
         }
       ],
       "tb:dependsOn": [
