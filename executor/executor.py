@@ -517,7 +517,10 @@ class SemanticN3Executor:
                     operator = str(next_b['operator'])
 
             if threshold is not None:
-                if op['gx_type'] == 'expect_column_kl_divergence_to_be_less_than':
+                if operator == 'http://www.w3.org/ns/odrl/2/isIncludedIn':
+                    # isIncludedIn: strict set membership (no mostly threshold)
+                    pass
+                elif op['gx_type'] == 'expect_column_kl_divergence_to_be_less_than':
                     kwargs['threshold'] = threshold / 100.0
                     kwargs['partition_object'] = {"values": ["M", "F"], "weights": [0.5, 0.5]}
                 elif op['gx_type'] == 'expect_column_values_to_be_between':

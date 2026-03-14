@@ -184,6 +184,17 @@
   ?op tb:hasImplementation ab:ImpConstraintEq .
 } .
 
+{
+  ?op tb:hasAbstract odrl:Constraint .
+  ?op tb:hasInput ?inputNode .
+  ?inputNode tb:role "operator" .
+  ?inputNode tb:value odrl:isIncludedIn .
+}
+=>
+{
+  ?op tb:hasImplementation ab:ImpConstraintIsIncludedIn .
+} .
+
 
 # ==============================================================================
 # RULE 8: Bind quality metric implementation

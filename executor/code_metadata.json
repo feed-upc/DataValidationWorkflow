@@ -202,6 +202,47 @@
       "tb:dependsOn": []
     },
     {
+      "@id": "ab:ImpConstraintIsIncludedIn",
+      "@type": "tb:Implementation",
+      "tb:forOp": [
+        {
+          "@id": "odrl:Constraint"
+        }
+      ],
+      "tb:forOperator": "odrl:isIncludedIn",
+      "tb:forType": [
+        {
+          "@id": "ab:Tabular"
+        }
+      ],
+      "tb:hasParameters": [
+        {
+          "tb:name": "data",
+          "tb:role": "previousResult",
+          "tb:type": "DataFrame",
+          "tb:description": "Data from previous quality metric (percentage or boolean)"
+        },
+        {
+          "tb:name": "threshold",
+          "tb:role": "threshold",
+          "tb:type": "string",
+          "tb:description": "Reference standard identifier (e.g. ISO_3166)"
+        },
+        {
+          "tb:name": "operator",
+          "tb:role": "operator",
+          "tb:type": "string",
+          "tb:description": "ODRL operator URI"
+        }
+      ],
+      "tb:hasCode": [
+        {
+          "tb:code": "data == 100"
+        }
+      ],
+      "tb:dependsOn": []
+    },
+    {
       "@id": "ab:ImpQualityMetric",
       "@type": "tb:Implementation",
       "rdfs:comment": "DQRP2 (DQR1EH): Completeness check - calculates percentage of non-null values for an attribute",

@@ -188,6 +188,23 @@
             "tb:dependsOn": []
         },
         {
+            "@id": "ab:ImpConstraintIsIncludedIn",
+            "@type": "tb:Implementation",
+            "tb:forOp": [
+                {
+                    "@id": "odrl:Constraint"
+                }
+            ],
+            "tb:forOperator": "odrl:isIncludedIn",
+            "tb:forType": [
+                {
+                    "@id": "ab:Tabular"
+                }
+            ],
+            "tb:gxExpectationType": "constraint_is_included_in",
+            "tb:dependsOn": []
+        },
+        {
             "@id": "ab:ImpQualityMetricRowCount",
             "@type": "tb:Implementation",
             "rdfs:comment": "DQRP5: Volume check - minimum number of instances",
