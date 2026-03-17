@@ -166,6 +166,17 @@
   ?op tb:hasAbstract odrl:Constraint .
   ?op tb:hasInput ?inputNode .
   ?inputNode tb:role "operator" .
+  ?inputNode tb:value odrl:lt .
+}
+=>
+{
+  ?op tb:hasImplementation ab:ImpConstraintLt .
+} .
+
+{
+  ?op tb:hasAbstract odrl:Constraint .
+  ?op tb:hasInput ?inputNode .
+  ?inputNode tb:role "operator" .
   ?inputNode tb:value odrl:gteq .
 }
 =>
@@ -242,6 +253,19 @@
 =>
 {
   ?op tb:hasImplementation ab:ImpQualityMetricConsistency .
+} .
+
+
+# ==============================================================================
+# RULE 11b: Bind volume metric implementation
+# ==============================================================================
+
+{
+  ?op tb:hasAbstract ab:CheckVolume .
+}
+=>
+{
+  ?op tb:hasImplementation ab:ImpQualityMetricRowCount .
 } .
 
 

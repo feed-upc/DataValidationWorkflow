@@ -120,6 +120,47 @@
       "tb:dependsOn": []
     },
     {
+      "@id": "ab:ImpConstraintLt",
+      "@type": "tb:Implementation",
+      "tb:forOp": [
+        {
+          "@id": "odrl:Constraint"
+        }
+      ],
+      "tb:forOperator": "odrl:lt",
+      "tb:forType": [
+        {
+          "@id": "ab:Tabular"
+        }
+      ],
+      "tb:hasParameters": [
+        {
+          "tb:name": "data",
+          "tb:role": "previousResult",
+          "tb:type": "DataFrame",
+          "tb:description": "Data from previous operation"
+        },
+        {
+          "tb:name": "threshold",
+          "tb:role": "threshold",
+          "tb:type": "number",
+          "tb:description": "Strict upper bound"
+        },
+        {
+          "tb:name": "operator",
+          "tb:role": "operator",
+          "tb:type": "string",
+          "tb:description": "ODRL operator URI"
+        }
+      ],
+      "tb:hasCode": [
+        {
+          "tb:code": "data < threshold"
+        }
+      ],
+      "tb:dependsOn": []
+    },
+    {
       "@id": "ab:ImpConstraintGteq",
       "@type": "tb:Implementation",
       "tb:forOp": [

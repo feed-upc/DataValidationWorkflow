@@ -229,6 +229,8 @@ async def generate_validation_service(request: Request):
         shutil.copy2(str(sdm_path), str(sdm_backup_path))
             
         contract["policies"] = [f"{rule_id}Rule"]
+        if data_product != 'Patient_Summary':
+            contract["name"] = data_product
         with open(dp1_path, "w") as f:
             json.dump(contract, f, indent=4)
             

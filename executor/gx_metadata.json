@@ -154,6 +154,23 @@
             "tb:dependsOn": []
         },
         {
+            "@id": "ab:ImpConstraintLt",
+            "@type": "tb:Implementation",
+            "tb:forOp": [
+                {
+                    "@id": "odrl:Constraint"
+                }
+            ],
+            "tb:forOperator": "odrl:lt",
+            "tb:forType": [
+                {
+                    "@id": "ab:Tabular"
+                }
+            ],
+            "tb:gxExpectationType": "constraint_lt",
+            "tb:dependsOn": []
+        },
+        {
             "@id": "ab:ImpConstraintGteq",
             "@type": "tb:Implementation",
             "tb:forOp": [

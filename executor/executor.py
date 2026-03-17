@@ -482,6 +482,7 @@ class SemanticN3Executor:
         composed_code += "import pandas as pd\n\n"
         composed_code += "def run_gx_validation(data_path):\n"
         composed_code += "    context = gx.get_context(mode='ephemeral')\n"
+        composed_code += "    _df = pd.read_csv(data_path)\n"
         composed_code += "    suite = context.suites.add(gx.ExpectationSuite(name='semantic_suite'))\n\n"
         
         needs_dataframe_source = False
@@ -518,7 +519,7 @@ class SemanticN3Executor:
                     pass
                 elif op['gx_type'] == 'expect_column_kl_divergence_to_be_less_than':
                     kwargs['threshold'] = threshold / 100.0
-                    kwargs['partition_object'] = {"values": ["M", "F"], "weights": [0.5, 0.5]}
+                    # partition_object built dynamically at runtime from data
                 elif op['gx_type'] == 'expect_column_values_to_be_between':
                     kwargs['min_value'] = 0
                     kwargs['max_value'] = threshold
@@ -547,8 +548,15 @@ class SemanticN3Executor:
                 composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnValuesToBeInSet(**_kwargs))\n\n"
                 
             elif op['gx_type'] == 'expect_column_kl_divergence_to_be_less_than':
+                # Fairness: build uniform partition dynamically from data categories
+                fairness_col = kwargs.get('column', 'gender')
+                needs_dataframe_source = True
                 composed_code += f"    # Step {op['num']}: {op['type']}\n"
-                composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnKLDivergenceToBeLessThan(**{kwargs}))\n\n"
+                composed_code += f"    _cats = sorted(_df['{fairness_col}'].dropna().unique().tolist())\n"
+                composed_code += f"    _uniform = {{\"values\": _cats, \"weights\": [1.0/len(_cats)]*len(_cats)}}\n"
+                composed_code += f"    _kl_kwargs = {repr(kwargs)}\n"
+                composed_code += f"    _kl_kwargs['partition_object'] = _uniform\n"
+                composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnKLDivergenceToBeLessThan(**_kl_kwargs))\n\n"
                 
             elif op['gx_type'] == 'expect_column_values_to_be_between':
                 # Freshness check: need to compute age in minutes from datetime column
@@ -582,9 +590,9 @@ class SemanticN3Executor:
 
                 
         if needs_dataframe_source:
-            # Freshness: load CSV, compute age column, then use DataFrame-based asset
-            composed_code += f"    _df = pd.read_csv(data_path)\n"
-            composed_code += f"    _df['{freshness_age_col}'] = (pd.Timestamp.now() - pd.to_datetime(_df['{freshness_ts_col}'])).dt.total_seconds() / 60.0\n"
+            # DataFrame-based asset (needed for dynamic partition or computed columns)
+            if freshness_age_col and freshness_ts_col:
+                composed_code += f"    _df['{freshness_age_col}'] = (pd.Timestamp.now() - pd.to_datetime(_df['{freshness_ts_col}'])).dt.total_seconds() / 60.0\n"
             composed_code += "    ds = context.data_sources.add_pandas('pandas_source')\n"
             composed_code += "    da = ds.add_dataframe_asset(name='df_asset')\n"
             composed_code += "    batch_def = da.add_batch_definition_whole_dataframe('dataframe_batch_def')\n"
@@ -652,9 +660,6 @@ class SemanticN3Executor:
             print(f"  ✗ Data file not found: {data_path}")
             return False, composed_code
 
-        # Copy the data file into the service dir so Docker can COPY it
-        shutil.copy2(str(data_file), str(service_dir / "data.csv"))
-
         print(f"\n  Building PolicyChecker image: {image_tag}")
         build_result = subprocess.run(
             ["docker", "build", "-t", image_tag, "."],
@@ -666,11 +671,15 @@ class SemanticN3Executor:
 
         print(f"  ✓ Image built: {image_tag}")
 
-        # Run the container — data.csv is baked into the image via COPY
+        # Run the container — mount data directory and pass file path
         print(f"  Running validation container...")
+        data_dir = str(data_file.parent)
+        data_name = data_file.name
         run_cmd = [
             "docker", "run", "--rm",
-            image_tag
+            "-v", f"{data_dir}:/data",
+            image_tag,
+            f"/data/{data_name}"
         ]
         run_result = subprocess.run(run_cmd, capture_output=True, text=True, timeout=300)
 
@@ -727,7 +736,10 @@ class SemanticN3Executor:
             f.write('    import sys\n')
             
             f.write('    # Extract data path from args or use default\n')
-            f.write('    data_file = sys.argv[1] if len(sys.argv) > 1 else "data.csv"\n')
+            f.write('    if len(sys.argv) < 2:\n')
+            f.write('        print("Usage: python validation_job.py <data_path>")\n')
+            f.write('        sys.exit(1)\n')
+            f.write('    data_file = sys.argv[1]\n')
             f.write('    print(f"Loading data from {data_file}...")\n')
             f.write('    try:\n')
             f.write('        result = run_gx_validation(data_file)\n')
@@ -754,8 +766,7 @@ class SemanticN3Executor:
             f.write('WORKDIR /app\n\n')
             f.write('COPY requirements.txt .\n')
             f.write('RUN pip install --no-cache-dir -r requirements.txt\n\n')
-            f.write('COPY validation_job.py .\n')
-            f.write('COPY data.csv .\n\n')
+            f.write('COPY validation_job.py .\n\n')
             f.write('ENTRYPOINT ["python", "validation_job.py"]\n')
             
         print(f"  ✓ Generated Dockerfile (GX)")
