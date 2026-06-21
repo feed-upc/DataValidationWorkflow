@@ -1,8 +1,9 @@
-# N3 Logic Rule: Timeliness/Freshness Policy Transformation (SEMANTIC VERSION)
+# N3 Logic Rule: Currentness/Freshness Policy Transformation (SEMANTIC VERSION)
 # Rule Chaining - Automatically chains from LoadData operation
 #
 # Transforms ODRL Permission policies with freshness constraints into data age validation operations.
 # USES SEMANTIC PROPERTIES instead of flat hasInput for unambiguous parameter binding.
+# Dimension: Currentness (ISO/IEC 25012)
 
 @prefix odrl: <http://www.w3.org/ns/odrl/2/> .
 @prefix tb: <http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/tbox#> .
@@ -16,7 +17,7 @@
 @prefix log: <http://www.w3.org/2000/10/swap/log#> .
 
 # Rule: Quality Policy with Permission and Freshness Constraint → CheckFreshness + Validation Operations
-# Chains from LoadData when Quality policy with permission and timeliness constraint exists
+# Chains from LoadData when Quality policy with permission and currentness constraint exists
 # Creates TWO operations with SEMANTIC properties
 {
     # Match PolicyChecker with Quality policy
@@ -24,15 +25,15 @@
         tb:accordingTo ?policy ;
         tb:validates ?dataset ;
         tb:nextStep ?loadOp .
-    
+
     # LoadData operation
     ?loadOp a tb:Operation ;
             tb:hasAbstract ab:LoadData .
-    
+
     # Check Freshness Policy
     ?policy a dqv:QualityPolicy ;
             odrl:permission ?permission .
-    
+
     ?permission odrl:constraint ?constraint .
 
     # Constraint details (DataAge < threshold)
@@ -41,7 +42,7 @@
                 odrl:rightOperand ?threshold ;
                 odrl:unit <http://qudt.org/schema/qudt/MIN> .
 
-    ?policy tb:qualityDimension "Timeliness" .
+    ?policy tb:qualityDimension "Currentness" .
 
     # Resolve physical timestamp attribute via the metric's dqv:computedOn property
     # The metric (e.g. ab:DataAge) declares dqv:computedOn ab:insertionTime,
@@ -67,10 +68,10 @@
                   ] ;
                   tb:hasOutput ab:data ;
                   tb:nextStep _:validationOp .
-    
+
     # Chain Operation 1 from LoadData
     ?loadOp tb:nextStep _:freshnessOp .
-    
+
     # Operation 2: Constraint validation - check age against threshold (TERMINAL)
     # ROLE-ANNOTATED INPUTS: Multiple inputs with different roles
     _:validationOp a tb:Operation ;
@@ -89,7 +90,7 @@
                    ] ;
                    tb:hasOutput ab:data ;
                    tb:isTerminal true .
-    
+
     # Chain Operation 2 from Operation 1
     _:freshnessOp tb:nextStep _:validationOp .
 } .

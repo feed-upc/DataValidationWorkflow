@@ -40,6 +40,12 @@
                 }
             ],
             "tb:gxExpectationType": "expect_column_values_to_not_be_null",
+            "tb:gxClass": "ExpectColumnValuesToNotBeNull",
+            "tb:gxParams": [
+                {"tb:gxParam": "column", "tb:gxSource": "binding", "tb:gxKey": "attr"}
+            ],
+            "tb:gxConstraintMode": "mostly",
+            "tb:gxNeedsDataframe": false,
             "tb:dependsOn": [
                 {
                     "tb:name": "great_expectations"
@@ -61,6 +67,14 @@
                 }
             ],
             "tb:gxExpectationType": "expect_column_values_to_be_in_set",
+            "tb:gxClass": "ExpectColumnValuesToBeInSet",
+            "tb:gxParams": [
+                {"tb:gxParam": "column", "tb:gxSource": "binding", "tb:gxKey": "attr"}
+            ],
+            "tb:gxConstraintMode": "value_set",
+            "tb:gxNeedsDataframe": false,
+            "tb:gxSetupCode": "import pycountry\n    _kw['value_set'] = [c.alpha_2 for c in pycountry.countries]",
+            "tb:gxExtraImports": ["pycountry"],
             "tb:dependsOn": [
                 {
                     "tb:name": "great_expectations"
@@ -73,7 +87,7 @@
         {
             "@id": "ab:ImpQualityMetricFairness",
             "@type": "tb:Implementation",
-            "rdfs:comment": "DQRP6 (DQR5EH): Fairness check - 50/50 balance",
+            "rdfs:comment": "DQRP6 (DQR5EH): Fairness check - class imbalance via KL divergence",
             "tb:forOp": [
                 {
                     "@id": "ab:CheckFairness"
@@ -85,6 +99,13 @@
                 }
             ],
             "tb:gxExpectationType": "expect_column_kl_divergence_to_be_less_than",
+            "tb:gxClass": "ExpectColumnKLDivergenceToBeLessThan",
+            "tb:gxParams": [
+                {"tb:gxParam": "column", "tb:gxSource": "binding", "tb:gxKey": "attr"}
+            ],
+            "tb:gxConstraintMode": "threshold_scaled",
+            "tb:gxNeedsDataframe": true,
+            "tb:gxSetupCode": "_cats = sorted(_df['{column}'].dropna().unique().tolist())\n    _uniform = {{\"values\": _cats, \"weights\": [1.0/len(_cats)]*len(_cats)}}\n    _kw['partition_object'] = _uniform",
             "tb:dependsOn": [
                 {
                     "tb:name": "great_expectations"
@@ -106,6 +127,12 @@
                 }
             ],
             "tb:gxExpectationType": "expect_column_values_to_be_null",
+            "tb:gxClass": "ExpectColumnValuesToBeNull",
+            "tb:gxParams": [
+                {"tb:gxParam": "column", "tb:gxSource": "binding", "tb:gxKey": "attr"}
+            ],
+            "tb:gxConstraintMode": "row_condition",
+            "tb:gxNeedsDataframe": false,
             "tb:dependsOn": [
                 {
                     "tb:name": "great_expectations"
@@ -127,6 +154,13 @@
                 }
             ],
             "tb:gxExpectationType": "expect_column_values_to_be_between",
+            "tb:gxClass": "ExpectColumnValuesToBeBetween",
+            "tb:gxParams": [
+                {"tb:gxParam": "column", "tb:gxSource": "computed", "tb:gxValue": "{ts_attr}_age_minutes"}
+            ],
+            "tb:gxConstraintMode": "range_0_max",
+            "tb:gxNeedsDataframe": true,
+            "tb:gxSetupCode": "_df['{ts_attr}_age_minutes'] = (pd.Timestamp.now() - pd.to_datetime(_df['{ts_attr}'])).dt.total_seconds() / 60.0",
             "tb:dependsOn": [
                 {
                     "tb:name": "great_expectations"
@@ -236,6 +270,10 @@
                 }
             ],
             "tb:gxExpectationType": "expect_table_row_count_to_be_between",
+            "tb:gxClass": "ExpectTableRowCountToBeBetween",
+            "tb:gxParams": [],
+            "tb:gxConstraintMode": "min_max",
+            "tb:gxNeedsDataframe": false,
             "tb:dependsOn": [
                 {
                     "tb:name": "great_expectations"

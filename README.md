@@ -38,7 +38,7 @@ This engine evaluates the specified ODRL policies over the target datasets autom
    ```
 
 2. **Semantic Planning & Constraint Propagation (`planner.py`)**
-   The `planner.py` uses semantic logic to evaluate the **ODRL (Open Digital Rights Language)** Policies associated with the dataset's contract. It leverages **N3 graph transformation rules** (e.g., `rules_n3/Completeness.n3`, `rules_n3/Validity.n3`, `rules_n3/Fairness.n3`) to automatically reason over the policy's Quality Dimensions.
+   The `planner.py` uses semantic logic to evaluate the **ODRL (Open Digital Rights Language)** Policies associated with the dataset's contract. It leverages **N3 graph transformation rules** (e.g., `rules_n3/Completeness.n3`, `rules_n3/Compliance.n3`, `rules_n3/Fairness.n3`) to automatically reason over the policy's Quality Dimensions.
    
    A key mechanism here is **Constraint Propagation**: the engine traces the ODRL constraints defined on abstract concepts (e.g., `ab:Sex`) through the data contracts down to the exact physical column names (e.g., `gender`). These rules translate the abstract governance goals (like checking if an ODRL `leftOperand` meets a `rightOperand` threshold) into a sequence of operational execution instructions.
 
@@ -50,9 +50,9 @@ This engine evaluates the specified ODRL policies over the target datasets autom
        ?permission odrl:constraint ?constraint .
        ?permission tb:physicalAttribute ?targetAttr .
    } => {
-       # ...Then emit an abstract instruction to calculate Fairness max percentages.
+       # ...Then emit an abstract instruction to calculate Fairness max deviation from uniform.
        _:fairnessOp a tb:Operation ;
-                    tb:hasAbstract ab:qM_Fairness ;
+                    tb:hasAbstract ab:CheckFairness ;
                     tb:hasInput [ tb:value ?targetAttr ; tb:role "targetAttribute" ] ;
                     tb:hasOutput ab:score .
    } .
@@ -66,8 +66,8 @@ This engine evaluates the specified ODRL policies over the target datasets autom
    {
      "@id": "ab:ImpQualityMetricValidity",
      "@type": "tb:Implementation",
-     "rdfs:comment": "Validity check - percentage of values adhering to ISO 3166 alpha-2",
-     "tb:forOp": [ { "@id": "ab:qM_Validity" } ],
+     "rdfs:comment": "DQRP3: Validity check - percentage of values adhering to reference standard (dispatches on standard parameter; currently supports ISO 3166 alpha-2)",
+     "tb:forOp": [ { "@id": "ab:CheckValidity" } ],
      "tb:hasCode": [
        { "tb:code": "(data[attr].astype(str).str.upper().isin({country.alpha_2 for country in __import__('pycountry').countries})).sum() / len(data) * 100" }
      ],
@@ -84,7 +84,7 @@ This engine evaluates the specified ODRL policies over the target datasets autom
 | ----------- | ---------------------------------------------------------------------------- |
 | `executor/` | Python implementation (`executor.py`) and `code_metadata.json`               |
 | `planner/`  | Python implementation (`planner.py`) and N3 reasoner wrapper                 |
-| `rules_n3/` | The core logic rules (N3) for generating validation plans (Timeliness, etc.) |
+| `rules_n3/` | The core logic rules (N3) for generating validation plans (Currentness, Completeness, Compliance, Consistency, Fairness) |
 
 ## Usage
 

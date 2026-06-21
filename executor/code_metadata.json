@@ -278,7 +278,7 @@
       ],
       "tb:hasCode": [
         {
-          "tb:code": "data == 100"
+          "tb:code": "data >= 100"
         }
       ],
       "tb:dependsOn": []
@@ -325,7 +325,7 @@
     {
       "@id": "ab:ImpQualityMetricValidity",
       "@type": "tb:Implementation",
-      "rdfs:comment": "DQRP3: Validity check - percentage of values adhering to ISO 3166 alpha-2",
+      "rdfs:comment": "DQRP3: Validity check - percentage of values adhering to reference standard (dispatches on standard parameter; currently supports ISO 3166 alpha-2)",
       "tb:forOp": [
         {
           "@id": "ab:CheckValidity"
@@ -348,6 +348,12 @@
           "tb:role": "attributeReference",
           "tb:type": "string",
           "tb:description": "Column to check for validity (e.g., countryOfAffiliation)"
+        },
+        {
+          "tb:name": "standard",
+          "tb:role": "standard",
+          "tb:type": "string",
+          "tb:description": "Reference standard local name (e.g. ISO_3166, ISO_3166_International_Standard)"
         }
       ],
       "tb:hasCode": [
@@ -367,7 +373,7 @@
     {
       "@id": "ab:ImpQualityMetricFairness",
       "@type": "tb:Implementation",
-      "rdfs:comment": "DQRP6 (DQR5EH): Fairness check - calculates max percentage of any discrete group",
+      "rdfs:comment": "DQRP6 (DQR5EH): Fairness check - calculates max deviation from uniform distribution as percentage",
       "tb:forOp": [
         {
           "@id": "ab:CheckFairness"
@@ -394,7 +400,7 @@
       ],
       "tb:hasCode": [
         {
-          "tb:code": "data[attr].value_counts(normalize=True).max() * 100"
+          "tb:code": "(data[attr].value_counts(normalize=True).max() - 1/data[attr].nunique()) * 100"
         }
       ],
       "tb:dependsOn": [
@@ -406,7 +412,7 @@
     {
       "@id": "ab:ImpQualityMetricRowCount",
       "@type": "tb:Implementation",
-      "rdfs:comment": "DQRP5: Volume check - counts the number of rows in the dataset",
+      "rdfs:comment": "DQRP5: Completeness/Volume check - counts the number of rows in the dataset",
       "tb:forOp": [
         {
           "@id": "ab:CheckVolume"

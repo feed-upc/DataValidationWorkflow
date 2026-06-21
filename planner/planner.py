@@ -64,10 +64,10 @@ class N3PlannerConfig:
     """Configuration for semantic N3-based planner"""
     n3_reasoner: str = "eye"
     enable_proof_generation: bool = False
-    reasoner_timeout: int = 30
+    reasoner_timeout: int = 120
     rules_directory: str = "rules_n3"  # SEMANTIC rule directory
     eye_path: str = "eye"
-    timeout: int = 30
+    timeout: int = 120
     n3_query_all: str = """
 @prefix : <http://www.w3.org/2000/10/swap/log#> .
 { ?s ?p ?o } => { ?s ?p ?o } .

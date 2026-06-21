@@ -3,7 +3,7 @@
 #
 # Transforms ODRL Permission policies with Volume constraints into data quality validation operations.
 # Matches on the measurement action (CheckVolume) rather than dimension string,
-# so this works for rules classified under any dimension (e.g. Validity).
+# so this works for rules classified under any dimension (e.g. Completeness).
 
 @prefix odrl: <http://www.w3.org/ns/odrl/2/> .
 @prefix tb: <http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/tbox#> .

@@ -14,6 +14,7 @@ from typing import Dict, List, Optional
 import json
 import subprocess
 import shutil
+import tempfile
 from pathlib import Path
 
 tbox = Namespace('http://www.semanticweb.org/acraf/ontologies/2024/healthmesh/tbox#')
@@ -213,13 +214,21 @@ async def generate_validation_service(request: Request):
         # Context Paths
         project_root = Path(PROJECT_ROOT)
         
-        # 1. Update dp1.json to bind this specific rule to the dataset
-        dp1_path = project_root / 'DataPlatformLayer' / 'Integration' / 'dp1.json'
+        # 1. Select and update the data product contract file
+        #    Convention: dp1.json for Patient_Summary, dp_<name>.json for others
+        integration_dir = project_root / 'DataPlatformLayer' / 'Integration'
+        if data_product == 'Patient_Summary':
+            dp_contract_path = integration_dir / 'dp1.json'
+        else:
+            dp_contract_path = integration_dir / f'dp_{data_product.lower()}.json'
+            if not dp_contract_path.exists():
+                # Fall back to dp1.json and set the name
+                dp_contract_path = integration_dir / 'dp1.json'
         
-        with open(dp1_path, "r") as f:
+        with open(dp_contract_path, "r") as f:
             contract = json.load(f)
             
-        backup_path = dp1_path.with_suffix(".json.bak")
+        backup_path = dp_contract_path.with_suffix(".json.bak")
         with open(backup_path, "w") as f:
             json.dump(contract, f)
             
@@ -229,13 +238,14 @@ async def generate_validation_service(request: Request):
         shutil.copy2(str(sdm_path), str(sdm_backup_path))
             
         contract["policies"] = [f"{rule_id}Rule"]
-        if data_product != 'Patient_Summary':
-            contract["name"] = data_product
-        with open(dp1_path, "w") as f:
+        contract["name"] = data_product
+        with open(dp_contract_path, "w") as f:
             json.dump(contract, f, indent=4)
             
-        export_dir = project_root / 'FederatedComputationalGovernance' / 'ComputationalCatalogues' / 'services'
-        export_dir.mkdir(parents=True, exist_ok=True)
+        # Use a fresh temp directory for each request to avoid permission issues
+        # and stale checker contamination from previous runs
+        import tempfile
+        export_dir = Path(tempfile.mkdtemp(prefix="validation_service_"))
         
         # 2. Invoke the framework orchestrator (demo.py) via subprocess to parse SDM and execute
         env = os.environ.copy()
@@ -245,7 +255,8 @@ async def generate_validation_service(request: Request):
             sys.executable, "demo/run_demo.py",
             "--skip-registration",
             "--backend", "gx", 
-            "--export-docker", str(export_dir)
+            "--export-docker", str(export_dir),
+            "--dp-contract", str(dp_contract_path)
         ]
         
         result = subprocess.run(
@@ -255,7 +266,7 @@ async def generate_validation_service(request: Request):
         if result.returncode == 0:
             import base64
             
-            # Find the most recently generated policyChecker folder
+            # Find the checker generated for the requested data product
             checker_dirs = [d for d in export_dir.glob("policyChecker_*") if d.is_dir()]
             if not checker_dirs:
                 return JSONResponse(
@@ -263,9 +274,23 @@ async def generate_validation_service(request: Request):
                     content={'error': 'Validation framework succeeded but no policyChecker directory was generated.'}
                 )
             
-            # Sort by modification time, newest first
-            checker_dirs.sort(key=lambda x: x.stat().st_mtime, reverse=True)
-            latest_checker_dir = checker_dirs[0]
+            # Among new checkers, find the one for the requested data product
+            # Match by contract column names (more reliable than literal product name)
+            mapping_columns = set(contract.get("mappings", {}).keys())
+            latest_checker_dir = None
+            best_score = 0
+            for d in checker_dirs:
+                vj = d / 'validation_job.py'
+                if vj.exists():
+                    code = vj.read_text()
+                    score = sum(1 for col in mapping_columns if col in code)
+                    if score > best_score:
+                        best_score = score
+                        latest_checker_dir = d
+            if latest_checker_dir is None:
+                # Fall back to newest by mtime
+                checker_dirs.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+                latest_checker_dir = checker_dirs[0]
             
             # Create a ZIP archive of the latest checker directory
             zip_path = latest_checker_dir.with_suffix('.zip')
@@ -308,9 +333,12 @@ async def generate_validation_service(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         if 'backup_path' in locals() and backup_path.exists():
-            shutil.move(str(backup_path), str(dp1_path))
+            shutil.move(str(backup_path), str(dp_contract_path))
         if 'sdm_backup_path' in locals() and sdm_backup_path.exists():
             shutil.move(str(sdm_backup_path), str(sdm_path))
+        # Clean up temp export directory
+        if 'export_dir' in locals() and export_dir.exists() and str(export_dir).startswith(tempfile.gettempdir()):
+            shutil.rmtree(str(export_dir), ignore_errors=True)
 
 if __name__ == '__main__':
     import uvicorn

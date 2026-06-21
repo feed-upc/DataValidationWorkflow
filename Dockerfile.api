@@ -17,17 +17,23 @@ RUN npm install
 
 # Install Python requirements
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY api_requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt -r api_requirements.txt
 
-# Copy the entire project for execution
-COPY . /app/
+# Copy node_modules to a known location accessible at runtime
+RUN cp -r /app/node_modules /opt/node_modules
 
-# The API expects to run from the root directory context
-ENV PYTHONPATH=/app
-ENV PATH="/app/node_modules/.bin:${PATH}"
+# The project is volume-mounted at /project at runtime.
+# We set /project as the working directory so the API always uses
+# the latest code and metadata from the host.
+ENV PYTHONPATH=/project/Connector/ValidationFramework:/project
+ENV PATH="/opt/node_modules/.bin:/app/node_modules/.bin:${PATH}"
+ENV PROJECT_ROOT=/project
 
 # Expose FastAPI port
 EXPOSE 5000
 
-# Run the API
-CMD ["python", "api/api.py"]
+WORKDIR /project
+
+# Run the API from the volume-mounted project
+CMD ["python", "Connector/ValidationFramework/api/api.py"]

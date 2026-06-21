@@ -1,7 +1,7 @@
-# N3 Logic Rule: Validity Policy Transformation (SEMANTIC VERSION)
+# N3 Logic Rule: Compliance Policy Transformation (SEMANTIC VERSION)
 # Rule Chaining - Automatically chains from LoadData operation
 #
-# Transforms ODRL Permission policies with validity constraints into data quality validation operations.
+# Transforms ODRL Permission policies with compliance constraints into data quality validation operations.
 # USES SEMANTIC PROPERTIES instead of flat hasInput for unambiguous parameter binding.
 
 @prefix odrl: <http://www.w3.org/ns/odrl/2/> .
@@ -15,8 +15,8 @@
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix log: <http://www.w3.org/2000/10/swap/log#> .
 
-# Rule: Quality Policy with Permission and Validity Constraint → CheckValidity + Validation Operations
-# Chains from LoadData when Quality policy with permission and validity constraint exists
+# Rule: Quality Policy with Permission and Compliance Constraint → CheckValidity + Validation Operations
+# Chains from LoadData when Quality policy with permission and compliance constraint exists
 # Creates TWO operations with SEMANTIC properties
 {
     # Match PolicyChecker with Quality policy
@@ -29,19 +29,19 @@
     ?loadOp a tb:Operation ;
             tb:hasAbstract ab:LoadData .
     
-    # Check Validity Policy
+    # Check Compliance Policy
     ?policy a dqv:QualityPolicy ;
             odrl:permission ?permission .
-    
+
     ?permission odrl:constraint ?constraint .
 
-    # Constraint details (Validity >= threshold)
+    # Constraint details (values must be included in reference standard)
     ?constraint odrl:leftOperand ?metric ;
                 odrl:operator ?operator ;
                 odrl:rightOperand ?threshold .
-    
-    # Ensure it is Validity
-    ?policy tb:qualityDimension "Validity" .
+
+    # Ensure it is Compliance
+    ?policy tb:qualityDimension "Compliance" .
 
     # Resolve physical attribute via ConstraintPropagation rule
     ?permission tb:physicalAttribute ?targetAttr .
@@ -49,7 +49,7 @@
 }
 =>
 {
-    # Operation 1: Quality Metric Calculation (Validity)
+    # Operation 1: Quality Metric Calculation (Compliance/Validity check against reference standard)
     # ROLE-ANNOTATED INPUTS: Each input has explicit role
     _:validityOp a tb:Operation ;
                   tb:hasAbstract ab:CheckValidity ;
@@ -61,7 +61,11 @@
                       tb:value ab:data ;
                       tb:role "previousResult"
                   ] ;
-                  tb:hasOutput ab:score ;  # Outputs a percentage/score
+                  tb:hasInput [
+                      tb:value ?threshold ;
+                      tb:role "standard"
+                  ] ;
+                  tb:hasOutput ab:score ;
                   tb:nextStep _:validationOp .
     
     # Chain Operation 1 from LoadData

@@ -88,6 +88,26 @@ class CodeMetadataLoader:
             
         return impl.get('tb:gxExpectationType')
     
+    def get_gx_config(self, impl_uri: URIRef) -> dict:
+        """Get full GX generation config for an implementation.
+        
+        Returns dict with keys: gxClass, gxParams, gxConstraintMode,
+        gxNeedsDataframe, gxSetupCode, gxExtraImports.
+        Returns None if no GX config exists for this implementation.
+        """
+        impl_id = str(impl_uri)
+        impl = self.implementations.get(impl_id)
+        if not impl or 'tb:gxClass' not in impl:
+            return None
+        return {
+            'gxClass': impl.get('tb:gxClass'),
+            'gxParams': impl.get('tb:gxParams', []),
+            'gxConstraintMode': impl.get('tb:gxConstraintMode', 'none'),
+            'gxNeedsDataframe': impl.get('tb:gxNeedsDataframe', False),
+            'gxSetupCode': impl.get('tb:gxSetupCode'),
+            'gxExtraImports': impl.get('tb:gxExtraImports', []),
+        }
+
     def get_dependencies(self, impl_uri: URIRef) -> list:
         """Get dependencies for implementation"""
         impl_id = str(impl_uri)
@@ -454,6 +474,7 @@ class SemanticN3Executor:
             
             bindings = self.get_semantic_bindings(current_op, None)
             gx_expectation_type = self.code_metadata.get_gx_expectation_type(impl_uri)
+            gx_config = self.code_metadata.get_gx_config(impl_uri)
             
             operations.append({
                 'num': op_count,
@@ -461,7 +482,8 @@ class SemanticN3Executor:
                 'type': op_type,
                 'impl': impl_uri,
                 'bindings': bindings,
-                'gx_type': gx_expectation_type
+                'gx_type': gx_expectation_type,
+                'gx_config': gx_config
             })
             
             print(f"  Step {op_count}: {op_type}")
@@ -486,113 +508,90 @@ class SemanticN3Executor:
         composed_code += "    suite = context.suites.add(gx.ExpectationSuite(name='semantic_suite'))\n\n"
         
         needs_dataframe_source = False
-        freshness_ts_col = None
-        freshness_age_col = None
+        setup_lines = []  # Collected pre-computation code to emit before data source setup
         
         for i, op in enumerate(operations):
             if not op['gx_type'] or op['gx_type'] == 'load_data':
                 continue
-                
             if op['gx_type'].startswith('constraint_'):
                 continue
-                
+            
+            cfg = op['gx_config']
+            if not cfg:
+                print(f"    ⚠ No GX config for {op['impl']}, skipping")
+                continue
+            
             b = op['bindings']
+            
+            # 1. Build kwargs from gxParams
             kwargs = {}
-            if 'attr' in b:
-                kwargs['column'] = b['attr']
-            elif 'ts_attr' in b:
-                kwargs['column'] = b['ts_attr']
-                
+            for param_def in cfg['gxParams']:
+                p_name = param_def['tb:gxParam']
+                p_source = param_def['tb:gxSource']
+                if p_source == 'binding':
+                    p_key = param_def['tb:gxKey']
+                    if p_key in b:
+                        kwargs[p_name] = b[p_key]
+                elif p_source == 'computed':
+                    # Template string with {binding_key} placeholders
+                    kwargs[p_name] = param_def['tb:gxValue'].format(**b)
+                elif p_source == 'literal':
+                    kwargs[p_name] = param_def['tb:gxValue']
+            
+            # 2. Look ahead to constraint operation for threshold/operator
             threshold = None
             operator = None
-            if i + 1 < len(operations) and operations[i+1]['gx_type'].startswith('constraint_'):
-                next_op = operations[i+1]
-                next_b = next_op['bindings']
+            if i + 1 < len(operations) and operations[i+1]['gx_type'] and operations[i+1]['gx_type'].startswith('constraint_'):
+                next_b = operations[i+1]['bindings']
                 if 'threshold' in next_b:
                     threshold = next_b['threshold']
                 if 'operator' in next_b:
                     operator = str(next_b['operator'])
-
-            if threshold is not None:
-                if operator == 'http://www.w3.org/ns/odrl/2/isIncludedIn':
-                    # isIncludedIn: strict set membership (no mostly threshold)
-                    pass
-                elif op['gx_type'] == 'expect_column_kl_divergence_to_be_less_than':
-                    kwargs['threshold'] = threshold / 100.0
-                    # partition_object built dynamically at runtime from data
-                elif op['gx_type'] == 'expect_column_values_to_be_between':
-                    kwargs['min_value'] = 0
-                    kwargs['max_value'] = threshold
-                elif op['gx_type'] == 'expect_table_row_count_to_be_between':
-                    if operator == 'http://www.w3.org/ns/odrl/2/gteq':
-                        kwargs['min_value'] = threshold
-                        kwargs['max_value'] = None
-                    elif operator == 'http://www.w3.org/ns/odrl/2/lteq':
-                        kwargs['min_value'] = 0
-                        kwargs['max_value'] = threshold
-                    else:
-                        kwargs['min_value'] = threshold
-                        kwargs['max_value'] = threshold
-                else:
-                    kwargs['mostly'] = threshold / 100.0
             
-            if op['gx_type'] == 'expect_column_values_to_not_be_null':
-                composed_code += f"    # Step {op['num']}: {op['type']}\n"
-                composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnValuesToNotBeNull(**{kwargs}))\n\n"
+            # 3. Apply constraint according to gxConstraintMode
+            mode = cfg['gxConstraintMode']
+            if threshold is not None or mode in ('row_condition', 'value_set'):
+                self._apply_gx_constraint(kwargs, mode, threshold, operator, b)
             
-            elif op['gx_type'] == 'expect_column_values_to_be_in_set':
-                composed_code += f"    # Step {op['num']}: {op['type']}\n"
-                composed_code += f"    import pycountry\n"
-                composed_code += f"    _kwargs = {repr(kwargs)}\n"
-                composed_code += f"    _kwargs['value_set'] = [c.alpha_2 for c in pycountry.countries]\n"
-                composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnValuesToBeInSet(**_kwargs))\n\n"
-                
-            elif op['gx_type'] == 'expect_column_kl_divergence_to_be_less_than':
-                # Fairness: build uniform partition dynamically from data categories
-                fairness_col = kwargs.get('column', 'gender')
+            # 4. Track dataframe source requirement
+            if cfg['gxNeedsDataframe']:
                 needs_dataframe_source = True
-                composed_code += f"    # Step {op['num']}: {op['type']}\n"
-                composed_code += f"    _cats = sorted(_df['{fairness_col}'].dropna().unique().tolist())\n"
-                composed_code += f"    _uniform = {{\"values\": _cats, \"weights\": [1.0/len(_cats)]*len(_cats)}}\n"
-                composed_code += f"    _kl_kwargs = {repr(kwargs)}\n"
-                composed_code += f"    _kl_kwargs['partition_object'] = _uniform\n"
-                composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnKLDivergenceToBeLessThan(**_kl_kwargs))\n\n"
-                
-            elif op['gx_type'] == 'expect_column_values_to_be_between':
-                # Freshness check: need to compute age in minutes from datetime column
-                ts_col = kwargs.get('column', 'lastUpdated')
-                age_col = f"{ts_col}_age_minutes"
-                needs_dataframe_source = True
-                freshness_ts_col = ts_col
-                freshness_age_col = age_col
-                composed_code += f"    # Step {op['num']}: {op['type']}\n"
-                composed_code += f"    # Pre-compute data age in minutes from datetime column\n"
-                age_kwargs = dict(kwargs)
-                age_kwargs['column'] = age_col
-                composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnValuesToBeBetween(**{age_kwargs}))\n\n"
-                
-            elif op['gx_type'] == 'expect_table_row_count_to_be_between':
-                composed_code += f"    # Step {op['num']}: {op['type']}\n"
-                composed_code += f"    suite.add_expectation(gx.expectations.ExpectTableRowCountToBeBetween(**{kwargs}))\n\n"
-                
-            elif op['gx_type'] == 'expect_column_values_to_be_null':
-                # Build row_condition dynamically from refinement parameters
-                condition_attr = b.get('condition_attr')
-                condition_values = b.get('condition_values', '')
-                if condition_attr and condition_values:
-                    parts = [f'{condition_attr} == "{v.strip()}"' for v in condition_values.split(',')]
-                    kwargs['row_condition'] = ' or '.join(parts)
-                    kwargs['condition_parser'] = 'pandas'
-                if 'mostly' in kwargs:
-                    del kwargs['mostly']
-                composed_code += f"    # Step {op['num']}: {op['type']}\n"
-                composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnValuesToBeNull(**{kwargs}))\n\n"
-
-                
+            
+            # 5. Emit setup code (pre-computation) if defined
+            setup_template = cfg.get('gxSetupCode')
+            if setup_template:
+                # Resolve placeholders from kwargs and bindings
+                fmt_vars = dict(b)
+                fmt_vars.update(kwargs)
+                rendered_setup = setup_template.format(**fmt_vars)
+                # Setup code that WRITES to _df (e.g., _df['col'] = ...) goes
+                # before data source setup; all other setup goes inline only
+                modifies_df = any(ln.strip().startswith('_df[') for ln in rendered_setup.split('\n'))
+                if modifies_df:
+                    setup_lines.append(f"    # Pre-computation for step {op['num']}")
+                    for line in rendered_setup.split('\n'):
+                        setup_lines.append(f"    {line.strip()}" if not line.startswith('    ') else line)
+            
+            # 6. Emit expectation code
+            gx_class = cfg['gxClass']
+            composed_code += f"    # Step {op['num']}: {op['type']}\n"
+            
+            if setup_template and '_kw' in setup_template:
+                # Setup code uses _kw dict — emit setup + add_expectation via _kw
+                fmt_vars = dict(b)
+                fmt_vars.update(kwargs)
+                rendered = setup_template.format(**fmt_vars)
+                composed_code += f"    _kw = {repr(kwargs)}\n"
+                for line in rendered.split('\n'):
+                    composed_code += f"    {line.strip()}\n"
+                composed_code += f"    suite.add_expectation(gx.expectations.{gx_class}(**_kw))\n\n"
+            else:
+                composed_code += f"    suite.add_expectation(gx.expectations.{gx_class}(**{kwargs}))\n\n"
+        
+        # Emit data source setup and checkpoint
         if needs_dataframe_source:
-            # DataFrame-based asset (needed for dynamic partition or computed columns)
-            if freshness_age_col and freshness_ts_col:
-                composed_code += f"    _df['{freshness_age_col}'] = (pd.Timestamp.now() - pd.to_datetime(_df['{freshness_ts_col}'])).dt.total_seconds() / 60.0\n"
+            for line in setup_lines:
+                composed_code += line + "\n"
             composed_code += "    ds = context.data_sources.add_pandas('pandas_source')\n"
             composed_code += "    da = ds.add_dataframe_asset(name='df_asset')\n"
             composed_code += "    batch_def = da.add_batch_definition_whole_dataframe('dataframe_batch_def')\n"
@@ -610,6 +609,15 @@ class SemanticN3Executor:
             composed_code += "    context.checkpoints.add(checkpoint)\n"
             composed_code += "    result = checkpoint.run()\n"
         composed_code += "    return result.success\n"
+        
+        # Warn if no expectations were added to the suite
+        if 'suite.add_expectation' not in composed_code:
+            print(f"\n⚠️  WARNING: No expectations were added to the GX suite!")
+            print(f"    This means no validation operations were mapped to GX expectations.")
+            print(f"    Operations collected: {[(op['num'], op['type'], op['gx_type']) for op in operations]}")
+            for op in operations:
+                if op['gx_type'] and op['gx_type'] != 'load_data' and not op['gx_type'].startswith('constraint_'):
+                    print(f"    Op {op['num']} ({op['type']}): bindings={op['bindings']}, gx_config={'present' if op['gx_config'] else 'MISSING'}")
         
         print(composed_code)
         print(f"{'='*60}\n")
@@ -643,14 +651,20 @@ class SemanticN3Executor:
             candidates = []
             if data_path:
                 # Extract the relative part after a known project marker
-                for marker in ("DataProductLayer/", "DataProduct_EHDS_AMR/"):
+                for marker in ("DataProductLayer/",):
                     idx = data_path.find(marker)
                     if idx != -1:
                         rel = data_path[idx:]
                         candidates += [Path("/app") / rel, Path("/project") / rel]
                         break
-            candidates.append(Path("/project/DataProductLayer/DataProduct_EHDS_AMR/Data/Patient_Summary.csv"))
-            candidates.append(Path("/app/DataProductLayer/DataProduct_EHDS_AMR/Data/Patient_Summary.csv"))
+            # Scan all DataProduct_* directories for any matching CSV
+            for base in (Path("/project"), Path("/app")):
+                dp_layer = base / "DataProductLayer"
+                if dp_layer.is_dir():
+                    for dp_dir in dp_layer.iterdir():
+                        if dp_dir.is_dir() and dp_dir.name.startswith("DataProduct_"):
+                            for csv_file in (dp_dir / "Data").glob("*.csv"):
+                                candidates.append(csv_file)
             for c in candidates:
                 if c.exists():
                     data_file = c
@@ -705,6 +719,40 @@ class SemanticN3Executor:
             shutil.rmtree(str(tmp_export), ignore_errors=True)
 
         return result, composed_code
+    
+    @staticmethod
+    def _apply_gx_constraint(kwargs: dict, mode: str, threshold, operator: str, bindings: dict):
+        """Apply constraint threshold/operator to GX kwargs based on constraint mode."""
+        odrl_base = 'http://www.w3.org/ns/odrl/2/'
+        if mode == 'mostly':
+            kwargs['mostly'] = threshold / 100.0
+        elif mode == 'threshold_scaled':
+            kwargs['threshold'] = threshold / 100.0
+        elif mode == 'min_max':
+            if operator == f'{odrl_base}gteq':
+                kwargs['min_value'] = threshold
+                kwargs['max_value'] = None
+            elif operator == f'{odrl_base}lteq':
+                kwargs['min_value'] = 0
+                kwargs['max_value'] = threshold
+            else:
+                kwargs['min_value'] = threshold
+                kwargs['max_value'] = threshold
+        elif mode == 'range_0_max':
+            kwargs['min_value'] = 0
+            kwargs['max_value'] = threshold
+        elif mode == 'value_set':
+            pass  # value_set built via gxSetupCode, threshold not used as mostly
+        elif mode == 'row_condition':
+            # Build row_condition from refinement bindings
+            cond_attr = bindings.get('condition_attr')
+            cond_vals = bindings.get('condition_values', '')
+            if cond_attr and cond_vals:
+                parts = [f'{cond_attr} == "{v.strip()}"' for v in cond_vals.split(',')]
+                kwargs['row_condition'] = ' or '.join(parts)
+                kwargs['condition_parser'] = 'pandas'
+            if 'mostly' in kwargs:
+                del kwargs['mostly']
         
     def _export_docker_service_gx(self, pc_uri: URIRef, composed_code: str, operations: list, previous_result: Any, override_dir: Path = None):
         """Export the GX composed suite as a standalone Dockerized service"""

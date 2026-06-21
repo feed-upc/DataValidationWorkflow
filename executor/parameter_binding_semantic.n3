@@ -330,3 +330,26 @@
     tb:role "expectedValue"
   ] .
 } .
+
+
+# ==============================================================================
+# RULE 15: Bind standard role to standard parameter (extracts local name from URI)
+# ==============================================================================
+
+{
+  ?op tb:hasInput ?inputNode .
+  ?inputNode tb:role "standard" .
+  ?inputNode tb:value ?standardURI .
+
+  ?standardURI log:uri ?uriString .
+  (?uriString "#(.+)") string:scrape ?localName .
+}
+=>
+{
+  ?op tb:boundParameter [
+    tb:name "standard" ;
+    tb:value ?localName ;
+    tb:source "hasInput" ;
+    tb:role "standard"
+  ] .
+} .
