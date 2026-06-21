@@ -326,6 +326,136 @@ class SemanticN3Planner:
         
         return pc_graph
     
+    def plan_dqvp(self, dqvp_ttl_path: str, data_path: str) -> Graph:
+        """
+        Generate a PolicyChecker plan from a DQVP-conformant Turtle policy.
+
+        Steps:
+          1. Parse the DQVP policy TTL.
+          2. Flatten dqvp:allChecks RDF lists into flat odrl:constraint triples
+             so the N3 rules can match them without list built-ins.
+          3. Bootstrap one (PolicyChecker + LoadData) pair per QualityPolicy.
+          4. Run EYE with rules_n3_dqvp/ — same executor-ready output as plan().
+        """
+        dqvp_ns = Namespace("https://w3id.org/odrl/profile/dataquality#")
+        odrl_ns = Namespace("http://www.w3.org/ns/odrl/2/")
+
+        # 1. Load DQVP policy
+        policy_graph = Graph()
+        policy_graph.parse(dqvp_ttl_path, format="turtle")
+        self.logger.info(f"Loaded DQVP policy: {len(policy_graph)} triples from {dqvp_ttl_path}")
+
+        # 2. Flatten dqvp:allChecks lists → odrl:constraint triples
+        from rdflib.collection import Collection
+        for permission in policy_graph.subjects(odrl_ns.action, None):
+            pass  # permissions are blank nodes; iterate via policy
+        for policy_uri in policy_graph.subjects(RDF.type, dqvp_ns.QualityPolicy):
+            for perm in policy_graph.objects(policy_uri, odrl_ns.permission):
+                list_head = policy_graph.value(perm, dqvp_ns.allChecks)
+                if list_head:
+                    for constraint in Collection(policy_graph, list_head):
+                        policy_graph.add((perm, odrl_ns.constraint, constraint))
+                    self.logger.info(f"Flattened allChecks list for permission {perm}")
+
+        # 3. Bootstrap PolicyChecker + LoadData for each QualityPolicy
+        bootstrap = Graph()
+        data_literal = Literal(data_path)
+        for policy_uri in policy_graph.subjects(RDF.type, dqvp_ns.QualityPolicy):
+            pc      = BNode()
+            load_op = BNode()
+            inp     = BNode()
+            bootstrap.add((pc, RDF.type,        tb.PolicyChecker))
+            bootstrap.add((pc, tb.accordingTo,  policy_uri))
+            bootstrap.add((pc, tb.nextStep,     load_op))
+            bootstrap.add((load_op, RDF.type,       tb.Operation))
+            bootstrap.add((load_op, tb.hasAbstract, abox.LoadData))
+            bootstrap.add((load_op, tb.hasInput,    inp))
+            bootstrap.add((inp,     tb.value,       data_literal))
+            bootstrap.add((inp,     tb.role,        Literal("filePath")))
+            bootstrap.add((load_op, tb.hasOutput,   abox.data))
+            self.logger.info(f"Bootstrapped PolicyChecker for {policy_uri}")
+
+        # 4. Merge and reason
+        combined = Graph()
+        for prefix, ns in policy_graph.namespaces():
+            combined.bind(prefix, ns)
+        for triple in policy_graph:
+            combined.add(triple)
+        for triple in bootstrap:
+            combined.add(triple)
+
+        dqvp_rules_dir = Path(__file__).parent / "rules_n3_dqvp"
+        if not dqvp_rules_dir.exists():
+            raise FileNotFoundError(f"DQVP rules directory not found: {dqvp_rules_dir}")
+
+        result = self.reasoner.apply_rules(combined, dqvp_rules_dir)
+        result = skolemize_blank_nodes(result)
+        self.logger.info(f"plan_dqvp produced {len(result)} triples")
+        self._print_dqvp_plan_summary(result)
+        return result
+
+    def _print_dqvp_plan_summary(self, plan: Graph) -> None:
+        """Print a human-readable summary of a DQVP plan graph."""
+        dqvp_ns = Namespace("https://w3id.org/odrl/profile/dataquality#")
+        odrl_ns = Namespace("http://www.w3.org/ns/odrl/2/")
+
+        def _short(uri) -> str:
+            if uri is None:
+                return "—"
+            s = str(uri)
+            return s.split("#")[-1].split("/")[-1]
+
+        def _inputs(op_uri) -> list[str]:
+            parts = []
+            for inp in plan.objects(op_uri, tb.hasInput):
+                role  = plan.value(inp, tb.role)
+                value = plan.value(inp, tb.value)
+                parts.append(f"{_short(role)}={_short(value)}")
+            return parts
+
+        def _walk(op_uri, indent: int, visited: set) -> None:
+            if op_uri in visited:
+                return
+            visited.add(op_uri)
+            abstract  = plan.value(op_uri, tb.hasAbstract)
+            terminal  = plan.value(op_uri, tb.isTerminal)
+            next_ops  = list(plan.objects(op_uri, tb.nextStep))
+            inputs    = _inputs(op_uri)
+            prefix    = "  " * indent
+            tag       = " [terminal]" if terminal else ""
+            print(f"{prefix}├─ {_short(abstract)}{tag}")
+            for inp in inputs:
+                print(f"{prefix}│    {inp}")
+            for nxt in next_ops:
+                _walk(nxt, indent + 1, visited)
+
+        pcs = list(plan.subjects(RDF.type, tb.PolicyChecker))
+        sep = "─" * 64
+        print(f"\n{sep}")
+        print(f"  DQVP Plan  —  {len(pcs)} PolicyChecker(s),  {len(list(plan.subjects(RDF.type, tb.Operation)))} Operation(s)")
+        print(sep)
+
+        for pc in pcs:
+            policy   = plan.value(pc, tb.accordingTo)
+            load_op  = plan.value(pc, tb.nextStep)
+            branches = list(plan.objects(load_op, tb.nextStep)) if load_op else []
+
+            print(f"\n  PolicyChecker  →  {_short(policy)}")
+            print(f"  {'─'*40}")
+            print(f"  ├─ LoadData")
+            print(f"  │    filePath={_inputs(load_op)[0].split('=')[1] if load_op and _inputs(load_op) else '?'}")
+
+            visited: set = {load_op}
+            if len(branches) > 1:
+                print(f"  │    [allChecks — {len(branches)} parallel check branch(es)]")
+                for branch in branches:
+                    print(f"  │")
+                    _walk(branch, 2, visited)
+            elif branches:
+                _walk(branches[0], 2, visited)
+
+        print(f"\n{sep}\n")
+
     def _add_operation_chain(self, source_graph: Graph, target_graph: Graph, pc_uri: URIRef):
         """Add all operations in chain to target graph"""
         # Start from first operation
