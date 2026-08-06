@@ -721,13 +721,13 @@ class SemanticN3Executor:
         service_dir.mkdir(parents=True, exist_ok=True)
         
         script_path = service_dir / "validation_job.py"
-        imports = set()
-        imports.add('great_expectations')
+        # Every composed template loads through pandas, so the job needs it
+        # imported. Excluding it here produced a container that built cleanly and
+        # then died at run time with NameError: name 'pandas' is not defined.
+        imports = {'great_expectations', 'pandas'}
         for op in operations:
-            deps = self.code_metadata.get_dependencies(op['impl'])
-            for dep in deps:
-                if dep not in ['pandas', 'datetime']:
-                    imports.add(dep)
+            for dep in self.code_metadata.get_dependencies(op['impl']):
+                imports.add(dep)
                     
         with open(script_path, "w") as f:
             for imp in imports:
@@ -755,12 +755,13 @@ class SemanticN3Executor:
             
         print(f"  ✓ Generated validation_job.py (GX)")
         
+        # One line per distinct dependency; great_expectations carries its floor,
+        # everything else is whatever the code metadata declared.
+        pinned = {'great_expectations': 'great_expectations>=1.0.0'}
         reqs_path = service_dir / "requirements.txt"
         with open(reqs_path, "w") as f:
-            f.write('pandas\n')
-            f.write('great_expectations>=1.0.0\n')
-            for imp in imports:
-                f.write(f'{imp}\n')
+            for imp in sorted(imports - {'datetime'}):   # datetime is stdlib
+                f.write(pinned.get(imp, imp) + '\n')
         print(f"  ✓ Generated requirements.txt (GX)")
         
         docker_path = service_dir / "Dockerfile"
