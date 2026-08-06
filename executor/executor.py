@@ -391,8 +391,11 @@ class SemanticN3Executor:
                 composed_code += f"    # Step {op['num']}: {op['type']}\n"
                 composed_code += f"    result_{i} = {op['code_template']}\n\n"
             else:
-                # Subsequent operations - replace 'data' with previous result
-                code = op['code_template'].replace('data', f'result_{i-1}')
+                # Subsequent operations consume the previous result. Substitute
+                # only the standalone `data` identifier - a bare str.replace()
+                # also rewrites substrings, so a template mentioning
+                # `data_element` or `metadata` would be silently corrupted.
+                code = re.sub(r'\bdata\b', f'result_{i-1}', op['code_template'])
                 composed_code += f"    # Step {op['num']}: {op['type']}\n"
                 composed_code += f"    result_{i} = {code}\n\n"
         
@@ -1024,12 +1027,15 @@ class SemanticN3Executor:
                            Literal(len(result), datatype=XSD.integer)))
              self.graph.add((report_uri, tb.resultValue,
                            Literal(str(result.head().to_dict()))))
-        elif isinstance(result, bool):
-            self.graph.add((report_uri, tb.resultValue, 
-                           Literal(result, datatype=XSD.boolean)))
-        elif isinstance(result, (int, float)):
-            self.graph.add((report_uri, tb.resultValue, 
-                           Literal(result, datatype=XSD.float)))
+        elif isinstance(result, (bool, np.bool_)):
+            # np.bool_ must be named explicitly and coerced: it is not a
+            # subclass of bool, so verdicts produced by pandas/numpy
+            # comparisons were previously recorded with no tb:resultValue.
+            self.graph.add((report_uri, tb.resultValue,
+                           Literal(bool(result), datatype=XSD.boolean)))
+        elif isinstance(result, (int, float, np.integer, np.floating)):
+            self.graph.add((report_uri, tb.resultValue,
+                           Literal(float(result), datatype=XSD.float)))
         elif isinstance(result, str):
             self.graph.add((report_uri, tb.resultValue, Literal(result)))
         
@@ -1040,32 +1046,40 @@ class SemanticN3Executor:
         return report_uri
     
     def _determine_validation_status(self, result: Any) -> str:
-        """Determine validation status from result
-        
+        """Determine validation status from a terminal operation's result.
+
+        Only a boolean is a verdict. The DQVP rules chain every measurement
+        into a terminal odrl:Constraint operation, so a well-formed
+        PolicyChecker always ends in one.
+
+        Anything else means no constraint was evaluated - a chain that stopped
+        at its measurement, leaving odrl:operator and odrl:rightOperand
+        unapplied. Those report COMPLETED rather than being guessed at.
+        Inferring PASSED from "the number is positive" or "the frame is
+        non-empty" silently reports an unenforced requirement as satisfied:
+        a completeness score of 8.94 would pass a 99% threshold.
+
         Args:
             result: Execution result
-            
+
         Returns:
             Status string: PASSED, FAILED, or COMPLETED
         """
-        if isinstance(result, bool):
+        # np.bool_ is not a subclass of Python bool, so it needs naming
+        # explicitly. np.bool_ is the portable spelling - the np.bool alias was
+        # removed in numpy 1.24 and only restored in 2.0.
+        if isinstance(result, (bool, np.bool_)):
             return "PASSED" if result else "FAILED"
-        elif isinstance(result, pd.DataFrame):
-            # If DataFrame is non-empty, consider it passed
-            return "PASSED" if len(result) > 0 else "FAILED"
-        elif isinstance(result, (int, float)):
-            # Numeric results are considered passed if > 0
-            return "PASSED" if result > 0 else "FAILED"
-        elif isinstance(result, pd.Series) and result.dtype == bool:
-            # Boolean series must be all True
+
+        if isinstance(result, pd.Series) and result.dtype == bool:
+            # An all-True boolean mask is a verdict over every row.
             return "PASSED" if result.all() else "FAILED"
-        elif isinstance(result, (np.bool_, np.bool)):
-            return "PASSED" if result else "FAILED"
-        elif isinstance(result, (np.integer, np.floating)):
-             return "PASSED" if result > 0 else "FAILED"
-        else:
-            # For other types, just mark as completed
-            return "COMPLETED"
+
+        print(
+            f"      ⚠ Terminal operation returned {type(result).__name__}, not a "
+            f"verdict - no constraint was evaluated. Reporting COMPLETED."
+        )
+        return "COMPLETED"
     
     def save_annotated_graph(self, output_file: str, format: str = "turtle") -> None:
         """Save the annotated graph to a file
