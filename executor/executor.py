@@ -520,9 +520,10 @@ class SemanticN3Executor:
                 if operator == 'http://www.w3.org/ns/odrl/2/isIncludedIn':
                     # isIncludedIn: strict set membership (no mostly threshold)
                     pass
-                elif op['gx_type'] == 'expect_column_kl_divergence_to_be_less_than':
-                    kwargs['threshold'] = threshold / 100.0
-                    # partition_object built dynamically at runtime from data
+                elif op['gx_type'] == 'expect_share_gap_to_be_at_most':
+                    # threshold is in percentage points; odrl:lt makes the bound strict
+                    kwargs['max_value'] = threshold
+                    kwargs['strict_max'] = operator == 'http://www.w3.org/ns/odrl/2/lt'
                 elif op['gx_type'] == 'expect_column_values_to_be_between':
                     kwargs['min_value'] = 0
                     kwargs['max_value'] = threshold
@@ -550,16 +551,17 @@ class SemanticN3Executor:
                 composed_code += f"    _kwargs['value_set'] = [c.alpha_2 for c in pycountry.countries]\n"
                 composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnValuesToBeInSet(**_kwargs))\n\n"
                 
-            elif op['gx_type'] == 'expect_column_kl_divergence_to_be_less_than':
-                # Fairness: build uniform partition dynamically from data categories
-                fairness_col = kwargs.get('column', 'gender')
+            elif op['gx_type'] == 'expect_share_gap_to_be_at_most':
+                # Fairness (DQRP6): the gap, in percentage points, between the shares of the
+                # most and the least frequent values of the attribute. Computed on the frame,
+                # then bounded like any column value.
+                fairness_col = kwargs.pop('column', 'gender')
+                gap_col = f"{fairness_col}_share_gap"
                 needs_dataframe_source = True
                 composed_code += f"    # Step {op['num']}: {op['type']}\n"
-                composed_code += f"    _cats = sorted(_df['{fairness_col}'].dropna().unique().tolist())\n"
-                composed_code += f"    _uniform = {{\"values\": _cats, \"weights\": [1.0/len(_cats)]*len(_cats)}}\n"
-                composed_code += f"    _kl_kwargs = {repr(kwargs)}\n"
-                composed_code += f"    _kl_kwargs['partition_object'] = _uniform\n"
-                composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnKLDivergenceToBeLessThan(**_kl_kwargs))\n\n"
+                composed_code += f"    _shares = _df['{fairness_col}'].dropna().value_counts(normalize=True) * 100\n"
+                composed_code += f"    _df['{gap_col}'] = float(_shares.max() - _shares.min()) if len(_shares) else 0.0\n"
+                composed_code += f"    suite.add_expectation(gx.expectations.ExpectColumnValuesToBeBetween(column='{gap_col}', min_value=0, **{repr(kwargs)}))\n\n"
                 
             elif op['gx_type'] == 'expect_column_values_to_be_between':
                 # Freshness check: need to compute age in minutes from datetime column

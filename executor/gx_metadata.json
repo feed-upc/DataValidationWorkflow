@@ -73,7 +73,7 @@
         {
             "@id": "ab:ImpQualityMetricFairness",
             "@type": "tb:Implementation",
-            "rdfs:comment": "DQRP6 (DQR5EH): Fairness check - 50/50 balance",
+            "rdfs:comment": "DQRP6 (DQR5EH): Fairness check - gap in percentage points between the shares of the most and least frequent values",
             "tb:forOp": [
                 {
                     "@id": "ab:CheckFairness"
@@ -84,7 +84,7 @@
                     "@id": "ab:Tabular"
                 }
             ],
-            "tb:gxExpectationType": "expect_column_kl_divergence_to_be_less_than",
+            "tb:gxExpectationType": "expect_share_gap_to_be_at_most",
             "tb:dependsOn": [
                 {
                     "tb:name": "great_expectations"
