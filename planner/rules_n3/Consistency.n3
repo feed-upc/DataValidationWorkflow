@@ -46,7 +46,8 @@
     ?duty odrl:constraint ?constraint .
     ?constraint odrl:rightOperand ?expectedValue .
     
-    ?policy tb:qualityDimension "Consistency" .
+    # The duty's CheckConsistency action identifies the check, whatever dimension the
+    # DQR is filed under (DQRP4 also serves Compliance).
 
     ?permission tb:physicalAttribute ?targetAttr .
     

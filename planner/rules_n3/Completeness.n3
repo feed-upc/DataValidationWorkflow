@@ -40,8 +40,10 @@
                 odrl:operator ?operator ;
                 odrl:rightOperand ?threshold .
     
-    # Ensure it is Completeness
-    ?policy tb:qualityDimension "Completeness" .
+    # Match on the measurement, as Validity.n3 and Volume.n3 do: the metric must measure
+    # CheckCompleteness, whatever dimension the DQR is filed under (DQRP2 also serves
+    # Accuracy and Consistency).
+    ?metric dqv:isMeasurementOf ab:CheckCompleteness .
 
     # Resolve physical attribute (Provided by ConstraintPropagation)
     ?permission tb:physicalAttribute ?targetAttr .

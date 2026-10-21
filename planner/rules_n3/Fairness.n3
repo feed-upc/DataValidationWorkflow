@@ -34,8 +34,9 @@
                 odrl:operator ?operator ;
                 odrl:rightOperand ?threshold .
     
-    # Ensure it is Fairness
-    ?policy tb:qualityDimension "Fairness" .
+    # Match on the measurement, as Validity.n3 and Volume.n3 do: the metric must measure
+    # CheckFairness, whatever dimension the DQR is filed under.
+    ?metric dqv:isMeasurementOf ab:CheckFairness .
 
     # Resolve physical attribute via ConstraintPropagation rule
     ?permission tb:physicalAttribute ?targetAttr .
