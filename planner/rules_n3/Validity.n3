@@ -40,8 +40,10 @@
                 odrl:operator ?operator ;
                 odrl:rightOperand ?threshold .
     
-    # Ensure it is Validity
-    ?policy tb:qualityDimension "Validity" .
+    # Match on the measurement action, as Volume.n3 does: the metric must measure
+    # CheckValidity. The catalogue classifies these DQRs under the ISO/IEC 25012
+    # dimension Compliance, so the dimension string no longer says "Validity".
+    ?metric dqv:isMeasurementOf ab:CheckValidity .
 
     # Resolve physical attribute via ConstraintPropagation rule
     ?permission tb:physicalAttribute ?targetAttr .
